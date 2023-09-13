@@ -186,9 +186,11 @@ class Operate:
     # try developing a path-finding algorithm that produces the waypoints automatically
     def drive_to_point(self, waypoint, robot_pose):
         # imports camera / wheel calibration parameters 
-        fileS = "calibration/param/scale.txt"
+        # Get dir
+        path = os.getcwd() + "/"
+        fileS = "{}calibration/param/scale.txt".format(path)
         scale = np.loadtxt(fileS, delimiter=',')
-        fileB = "calibration/param/baseline.txt"
+        fileB = "{}calibration/param/baseline.txt".format(path)
         baseline = np.loadtxt(fileB, delimiter=',')
         
         ####################################################
@@ -202,17 +204,11 @@ class Operate:
 
         wheel_vel = 30 # tick
         
-        # turn towards the waypoint
-        ''' Get baseline'''
-        
-        dataDir = "{}calibration/param/".format(os.getcwd())
-        fileNameB = "{}baseline.txt".format(dataDir)
         # read baseline from numpy formation to float
-        baseline = np.loadtxt(fileNameB, delimiter=',')
 
 
-        turn_time = (baseline * robot_angle) / wheel_vel
-        print("Turning for {:.2f} seconds".format(turn_time))
+        turn_time = abs((baseline * robot_angle) / wheel_vel)
+        print("Turning for {:.2f} seconds".format(turn_time[0]))
 
         ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
         
@@ -277,10 +273,10 @@ class Operate:
                                 )
 
         # for target detector (M3)
-        detector_view = cv2.resize(self.yolo_vis, (320, 240), cv2.INTER_NEAREST)
-        self.draw_pygame_window(canvas, detector_view,
-                                position=(h_pad, 240 + 2 * v_pad)
-                                )
+        # detector_view = cv2.resize(self.yolo_vis, (320, 240), cv2.INTER_NEAREST)
+        # self.draw_pygame_window(canvas, detector_view,
+        #                         position=(h_pad, 240 + 2 * v_pad)
+        #                         )
 
         # canvas.blit(self.gui_mask, (0, 0))
         self.put_caption(canvas, caption='SLAM', position=(2 * h_pad + 320, v_pad))
@@ -421,40 +417,45 @@ if __name__ == "__main__":
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
     # parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
-    parser.add_argument("--yolo_model", default='YOLO/model/best_4_Sep.pt')
+    # parser.add_argument("--yolo_model", default='YOLO/model/best_4_Sep.pt')
 
+    # fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
+    # print(aruco_true_pos)
+    # search_list = read_search_list("M4_prac_shopping_list.txt") # change to 'M4_true_shopping_list.txt' for lv2&3
+    # print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
     args, _ = parser.parse_known_args()
+    ppi = PenguinPi(args.ip,args.port)
 
-    pygame.font.init()
-    TITLE_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 35)
-    TEXT_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 40)
+    # pygame.font.init()
+    # TITLE_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 35)
+    # TEXT_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 40)
 
-    width, height = 700, 660
-    canvas = pygame.display.set_mode((width, height))
-    pygame.display.set_caption('ECE4078 2023 Lab')
-    pygame.display.set_icon(pygame.image.load('pics/8bit/pibot5.png'))
-    canvas.fill((0, 0, 0))
-    splash = pygame.image.load('pics/loading.png')
-    pibot_animate = [pygame.image.load('pics/8bit/pibot1.png'),
-                     pygame.image.load('pics/8bit/pibot2.png'),
-                     pygame.image.load('pics/8bit/pibot3.png'),
-                     pygame.image.load('pics/8bit/pibot4.png'),
-                     pygame.image.load('pics/8bit/pibot5.png')]
-    pygame.display.update()
+    # width, height = 700, 660
+    # canvas = pygame.display.set_mode((width, height))
+    # pygame.display.set_caption('ECE4078 2023 Lab')
+    # pygame.display.set_icon(pygame.image.load('pics/8bit/pibot5.png'))
+    # canvas.fill((0, 0, 0))
+    # splash = pygame.image.load('pics/loading.png')
+    # pibot_animate = [pygame.image.load('pics/8bit/pibot1.png'),
+    #                  pygame.image.load('pics/8bit/pibot2.png'),
+    #                  pygame.image.load('pics/8bit/pibot3.png'),
+    #                  pygame.image.load('pics/8bit/pibot4.png'),
+    #                  pygame.image.load('pics/8bit/pibot5.png')]
+    # pygame.display.update()
 
     start = False
 
-    counter = 40
-    while not start:
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                start = True
-        canvas.blit(splash, (0, 0))
-        x_ = min(counter, 600)
-        if x_ < 600:
-            canvas.blit(pibot_animate[counter % 10 // 2], (x_, 565))
-            pygame.display.update()
-            counter += 2
+    # counter = 40
+    # while not start:
+    #     for event in pygame.event.get():
+    #         if event.type == pygame.KEYDOWN:
+    #             start = True
+    #     canvas.blit(splash, (0, 0))
+    #     x_ = min(counter, 600)
+    #     if x_ < 600:
+    #         canvas.blit(pibot_animate[counter % 10 // 2], (x_, 565))
+    #         pygame.display.update()
+    #         counter += 2
 
     operate = Operate(args)
 
@@ -468,8 +469,10 @@ if __name__ == "__main__":
     ################################################################################
     loop_interval = 700  # 1000 milliseconds = 1 second --> for capture image
     ################################################################################
+    operate.drive_to_point([0.5, 0.5], operate.ekf.robot.state)
+    operate.command['motion'] = [0,0]
 
-    while start:
+    while False:
         # operate.update_keyboard()
         # operate.take_pic()
         # drive_meas = operate.control()
@@ -493,5 +496,5 @@ if __name__ == "__main__":
         # operate.save_image()
         # operate.detect_target()
         # visualise
-        operate.draw(canvas)
-        pygame.display.update()
+        # operate.draw(canvas)
+        # pygame.display.update()
