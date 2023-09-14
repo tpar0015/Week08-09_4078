@@ -154,6 +154,8 @@ class Operate:
     - Use self.pibot to set_velocity
     
     '''    
+    def get_robot_pose(self):
+        return self.ekf.robot.state[0:3, 0]
     
     # Waypoint navigation
     # the robot automatically drives to a given [x,y] coordinate
@@ -169,7 +171,7 @@ class Operate:
         baseline = np.loadtxt(fileB, delimiter=',')
 
         # Get pose
-        robot_pose = self.ekf.robot.pose
+        robot_pose = self.ekf.robot.state[0:3, 0]
         print(f"Current robot pose: {robot_pose[0]} - {robot_pose[1]} - {robot_pose[2]}")
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -178,18 +180,19 @@ class Operate:
         robot_angle = robot_pose[2] - robot_angle
         wheel_vel = 30 # tick
         # read baseline from numpy formation to float
+        print(baseline, robot_angle, wheel_vel)
+        input('Press ENTER to turn')
         turn_time = abs((baseline * robot_angle) / wheel_vel)
-        print("Turning for {:.2f} seconds".format(turn_time[0]))
+        print("Turning for {:.5f} seconds".format(turn_time))
 
         # this similar to self.command['motion'] in prev M
         self.pibot.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)    # turn on the spot
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # after turning, drive straight to the waypoint
-        robot_dist = ((waypoint[1]+robot_pose[1]**2)+(waypoint[0]+robot_pose[0])**2)
-        drive_time = robot_dist * scale
-        print("Driving for {:.2f} seconds".format(drive_time))
-
+        robot_dist = ((waypoint[1]-robot_pose[1]**2)+(waypoint[0]-robot_pose[0])**2)**(1/2)
+        drive_time = robot_dist * scale * wheel_vel
+        print("Driving for {:.5f} seconds".format(drive_time))
         # this similar to self.command['motion'] in prev M
         self.pibot.set_velocity([1, 0], tick=wheel_vel, time=drive_time)   # drive straight
         ####################################################
@@ -224,32 +227,35 @@ if __name__ == "__main__":
     waypoint = [0.0,0.0]
 
     # The following is only a skeleton code for semi-auto navigation
-    while True:
-        # enter the waypoints
-        # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
-        x,y = 0.0,0.0
-        x = input("X coordinate of the waypoint: ")
-        try:
-            x = float(x)
-        except ValueError:
-            print("Please enter a number.")
-            continue
+    try: 
+        while True:
+            # enter the waypoints
+            # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
+            x,y = 0.0,0.0
+            x = input("X coordinate of the waypoint: ")
+            try:
+                x = float(x)
+            except ValueError:
+                print("Please enter a number.")
+                continue
 
 
-        y = input("Y coordinate of the waypoint: ")
-        try:
-            y = float(y)
-        except ValueError:
-            print("Please enter a number.")
-            continue
+            y = input("Y coordinate of the waypoint: ")
+            try:
+                y = float(y)
+            except ValueError:
+                print("Please enter a number.")
+                continue
 
-        # robot drives to the waypoint
-        waypoint = [x,y]
-        operate.drive_to_point(waypoint)
-        print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.ekf.robot.pose}")
+            # robot drives to the waypoint
+            waypoint = [x,y]
+            operate.drive_to_point(waypoint)
+            print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
 
-        # exit
+            # exit
+            operate.exit()
+            uInput = input("Add a new waypoint? [Y/N]")
+            if uInput == 'N':
+                break
+    except KeyboardInterrupt:
         operate.exit()
-        uInput = input("Add a new waypoint? [Y/N]")
-        if uInput == 'N':
-            break
