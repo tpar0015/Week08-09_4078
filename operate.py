@@ -13,7 +13,9 @@ import DatasetHandler as dh    # save/load functions
 import measure as measure      # measurements
 # import pygame                       # python package for GUI
 
-# import SLAM components you developed in M2
+#####################################
+'''Import Robot and EKF classes'''
+#####################################
 sys.path.insert(0, "{}/slam".format(os.getcwd()))
 from slam.ekf import EKF
 from slam.robot import Robot
@@ -36,7 +38,7 @@ class Operate:
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # initialise SLAM + Driving parameters
-        self.ekf = self.init_ekf(args.calib_dir, args.ip)
+        self.ekf = self.init_ekf(args.calib_dir, args.ip) # = EKF(Robot)
         self.aruco_det = aruco.aruco_detector(self.ekf.robot, marker_length=0.07)  # size of the ARUCO markers
         self.request_recover_robot = False
         self.ekf_on = False
@@ -172,26 +174,35 @@ class Operate:
 
         # Get pose
         robot_pose = self.ekf.robot.state[0:3, 0]
-        print(f"Current robot pose: {robot_pose[0]} - {robot_pose[1]} - {robot_pose[2]}")
+        print(f"\n~~~~~~~~~\nIn function: current robot pose: [{robot_pose}]")
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Turn toward waypoint
-        robot_angle = np.arctan((waypoint[1]-robot_pose[1])/(waypoint[0]-robot_pose[0])) # rad
-        robot_angle = robot_pose[2] - robot_angle
-        wheel_vel = 30 # tick
+        # Note that the angle here is between LINE_TO_WAYPOINT and y-axis
+        # ==> arctan(delta_x / delta_y)
+        angle_to_waypoint = np.arctan((waypoint[0]-robot_pose[0])/(waypoint[1]-robot_pose[1])) # rad
+        robot_angle = robot_pose[2] - angle_to_waypoint
+        wheel_vel = 10 # tick/s
         # read baseline from numpy formation to float
-        print(baseline, robot_angle, wheel_vel)
-        input('Press ENTER to turn')
-        turn_time = abs((baseline * robot_angle) / wheel_vel)
+        # print(f"baseline: {baseline}, angle in degree: {robot_angle * 180 / np.pi}")
+        # input('Press ENTER to turn')
+        # turn_time = abs((baseline/2 * robot_angle) * wheel_vel)
+        turn_time = baseline/2 * robot_angle / (scale * wheel_vel)
         print("Turning for {:.5f} seconds".format(turn_time))
 
+        # Account for negative angle
+        if turn_time < 0:
+            turn_time *=-1
+            turn_vel = wheel_vel * -1
         # this similar to self.command['motion'] in prev M
-        self.pibot.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)    # turn on the spot
+        self.pibot.set_velocity([0, 1], turning_tick=turn_vel, time=turn_time)    # turn on the spot
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # after turning, drive straight to the waypoint
         robot_dist = ((waypoint[1]-robot_pose[1]**2)+(waypoint[0]-robot_pose[0])**2)**(1/2)
-        drive_time = robot_dist * scale * wheel_vel
+        print(f"scale: {scale}, dist: {robot_dist}")
+        input('Press ENTER to turn')
+        drive_time = robot_dist / (scale * wheel_vel)
         print("Driving for {:.5f} seconds".format(drive_time))
         # this similar to self.command['motion'] in prev M
         self.pibot.set_velocity([1, 0], tick=wheel_vel, time=drive_time)   # drive straight
@@ -224,31 +235,14 @@ if __name__ == "__main__":
     # Initialise operate class
     operate = Operate(args)
 
-    waypoint = [0.0,0.0]
+    # waypoint = [x,y]]
+    waypoint = [0.3,0.4]
 
     # The following is only a skeleton code for semi-auto navigation
     try: 
         while True:
-            # enter the waypoints
-            # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
-            x,y = 0.0,0.0
-            x = input("X coordinate of the waypoint: ")
-            try:
-                x = float(x)
-            except ValueError:
-                print("Please enter a number.")
-                continue
-
-
-            y = input("Y coordinate of the waypoint: ")
-            try:
-                y = float(y)
-            except ValueError:
-                print("Please enter a number.")
-                continue
-
             # robot drives to the waypoint
-            waypoint = [x,y]
+            print(f"Current robot pose: {operate.get_robot_pose()}")
             operate.drive_to_point(waypoint)
             print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
 
@@ -257,5 +251,6 @@ if __name__ == "__main__":
             uInput = input("Add a new waypoint? [Y/N]")
             if uInput == 'N':
                 break
+
     except KeyboardInterrupt:
         operate.exit()
