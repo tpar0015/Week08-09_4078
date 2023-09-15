@@ -12,21 +12,24 @@ class PenguinPi:
         self.ip = ip
         self.port = port
         self.wheel_vel = [0, 0]
+        ''' Bill modified this - 15 Sep'''
+        self.tick = 50
+        self.turning_tick = 20
 
     ##########################################
     # Change the robot velocity here
     # tick = forward speed
     # turning_tick = turning speed
     ########################################## 
-    def set_velocity(self, command, tick=50, turning_tick=10, time=0):
+    def set_velocity(self, command, time=0):
         # running in sim
         if self.ip == 'localhost': 
-            l_vel = command[0]*tick - command[1]*turning_tick
-            r_vel = command[0]*tick + command[1]*turning_tick
+            l_vel = command[0]*self.tick - command[1]*self.turning_tick
+            r_vel = command[0]*self.tick + command[1]*self.turning_tick
         # running on physical robot (if right wheel spins backwards in test motor)
         else:
-            l_vel = command[0]*tick - command[1]*turning_tick
-            r_vel = -command[0]*tick - command[1]*turning_tick # reverse right wheel velocity
+            l_vel = command[0]*self.tick - command[1]*self.turning_tick
+            r_vel = -command[0]*self.tick - command[1]*self.turning_tick # reverse right wheel velocity
         self.wheel_vel = [l_vel, r_vel]
         if time == 0:
             requests.get(

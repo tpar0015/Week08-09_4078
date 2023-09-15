@@ -5,6 +5,7 @@ import numpy as np
 import json
 import argparse
 import time
+import w8HelperFunc as w8
 
 # import utility functions
 sys.path.insert(0, "{}/util".format(os.getcwd()))
@@ -47,22 +48,27 @@ class Operate:
         # Used to computed dt for measure.Drive
         self.control_clock = time.time()
 
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Use self.command to use self.control func inside POLLING loop
+        self.command = {'motion': [0, 0]}
+
 
     '''
     ##############################################################################
-    ######################      From M1     ######################################
+    ######################      Basic op     #####################################
     ##############################################################################
     '''
 
-    # Wheel control - using util/pibot.py
+    # Wheel control - using util
+    '''Update the class measure.Drive with all driving params'''
+    #
     def control(self):
-        # this is based on input arguments play_data, it usually unused so far
         if args.play_data:
             lv, rv = self.pibot.set_velocity()
         else:
             lv, rv = self.pibot.set_velocity(self.command['motion'])
-        if self.data is not None:
-            self.data.write_keyboard(lv, rv)
+        # if self.data is not None:
+        #     self.data.write_keyboard(lv, rv)
         # measure time 
         dt = time.time() - self.control_clock
         # running in sim
@@ -97,18 +103,16 @@ class Operate:
 
     ''' 
     ##############################################################################
-    ######################      From M2     ######################################
+    ######################      SLAM related    ##################################
     ##############################################################################
     
-    - Added more comments
     - Uncommented the "add_landmarks" in update_slam()
-    -
     '''
 
     # SLAM with ARUCO markers       
     def update_slam(self, drive_meas):
         # use arcuco_detector.py to call detect in-build func
-        lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+        # lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
         
         # CHECKING - pause to print LMS
         if self.request_recover_robot:
@@ -143,6 +147,13 @@ class Operate:
         baseline = np.loadtxt(fileB, delimiter=',')
         robot = Robot(baseline, scale, camera_matrix, dist_coeffs)
         return EKF(robot)
+    
+    # Read in the map data to save into ekf clas
+    # - tag list
+    # - markers list
+    def create_lms(self, tags, markers):
+        self.ekf.taglist = tags
+        self.ekf.markers = markers
 
 
     '''
@@ -166,11 +177,13 @@ class Operate:
     # try developing a path-finding algorithm that produces the waypoints automatically
     def drive_to_point(self, waypoint):
         # Get dir
-        path = os.getcwd() + "/"
-        fileS = "{}calibration/param/scale.txt".format(path)
-        scale = np.loadtxt(fileS, delimiter=',')
-        fileB = "{}calibration/param/baseline.txt".format(path)
-        baseline = np.loadtxt(fileB, delimiter=',')
+        # path = os.getcwd() + "/"
+        # fileS = "{}calibration/param/scale.txt".format(path)
+        # scale = np.loadtxt(fileS, delimiter=',')
+        # fileB = "{}calibration/param/baseline.txt".format(path)
+        # baseline = np.loadtxt(fileB, delimiter=',')
+        scale = self.ekf.robot.wheels_scale
+        baseline = self.ekf.robot.wheels_width
 
         # Get pose
         robot_pose = self.ekf.robot.state[0:3, 0]
@@ -210,7 +223,23 @@ class Operate:
 
         print(f"Arrived at [{waypoint[0]}, {waypoint[1]}]")
 
-    def exit(self):
+    def manual_set_robot_pose(self, start_pose, end_point):
+        '''
+        TODO: 
+        - from inputs (starting robot's pose, end point) --> compute and save robot pose at end point
+        - !!! FOR NOW !!! theta at endpoint is along the LINE_TO_WAYPOINT
+        '''
+        x = start_pose[0] + end_point[0]
+        y = start_pose[1] + end_point[1]
+        # do pretty much the same calculation as in drive_to_point()
+        theta = np.arctan((end_point[0]-start_pose[0])/(end_point[1]-start_pose[1])) # rad
+
+        # update robot pose
+        self.ekf.robot.state[0] = x
+        self.ekf.robot.state[1] = y
+        self.ekf.robot.state[2] = theta
+
+    def stop(self):
         self.pibot.set_velocity([0, 0])
         
 
@@ -230,27 +259,105 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
+    parser.add_argument("--map", type=str, default='Home_test_map.txt')
+    # parser.add_argument("--map", type=str, default='M4_prac_map_full.txt')
     args, _ = parser.parse_known_args()
 
-    # Initialise operate class
+    # Initialise
     operate = Operate(args)
+    operate.stop()
+    start = True
 
-    # waypoint = [x,y]]
+    # read in the true map
+    # aruco_true_pos already in 10x2 np array
+    fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
+    # create a list start from 1 to 10
+    aruco_taglist = [i for i in range(1,11)]
+
+    # print target fruits
+    # search_list = w8.read_search_list("M4_prac_shopping_list.txt") # change to 'M4_true_shopping_list.txt' for lv2&3
+    # w8.print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
+
+    # Save aruco position
+    operate.create_lms(tags = aruco_taglist, markers=aruco_true_pos)
+    # print aruco locs
+    for idx, tag in enumerate(aruco_taglist):
+        print(f"Arcuco{tag}: \t{operate.ekf.markers[idx]}")
+
+    #######################################################################################
+
+    # Set up waypoint using format [x,y], in metres
     waypoint = [0.3,0.4]
 
-    # The following is only a skeleton code for semi-auto navigation
-    try: 
-        while True:
-            # robot drives to the waypoint
-            print(f"Current robot pose: {operate.get_robot_pose()}")
-            operate.drive_to_point(waypoint)
-            print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
+    print("\n\n~~~~~~~~~~~~~\nStarting\n~~~~~~~~~~~~~\n\n")
 
-            # exit
-            operate.exit()
-            uInput = input("Add a new waypoint? [Y/N]")
-            if uInput == 'N':
-                break
+    try: 
+        while start:
+
+            '''1. Robot drives to the waypoint'''
+            # cur_pose = operate.get_robot_pose()
+            # print(f"Current robot pose: {cur_pose}")
+            # operate.drive_to_point(waypoint)
+
+            '''2. Manual compute robot pose (based on start pose & end points)'''
+            # operate.manual_set_robot_pose(cur_pose, waypoint)
+            # print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
+
+
+            '''3. Rotate at spot 360 & use SLAM to localise'''
+            rot_360 = True
+            operate.ekf_on = True
+            scale = operate.ekf.robot.wheels_scale
+            baseline = operate.ekf.robot.wheels_width
+            # get self.pibot.turning_tick to compute turning time
+            rot_360_time = baseline/2 * (2*np.pi) / (scale * operate.pibot.turning_tick)
+            start_time = time.time()
+
+            while rot_360:
+                
+                cur_time = time.time()
+                operate.command["motion"] = [0, 1]
+                drive_meas = operate.control()
+
+                ''' TODO: check here'''
+                # operate.update_slam(drive_meas)
+                # print(operate.ekf.)
+                # check time to exit
+                if (cur_time - start_time) >= rot_360_time:
+                    rot_360 = False
+                    operate.command["motion"] = [0, 0]
+                    print(f"Finished rotating 360 degree; New robot pose: {operate.get_robot_pose()}")
+
+            
+            start = False
 
     except KeyboardInterrupt:
-        operate.exit()
+        operate.stop()
+
+
+
+    operate.stop()
+
+
+
+'''
+TODO:
+
+Current plan:
+1. Go to waypoint
+2. Self calculate ROBOT pose
+3. Rotate to localise
+--> Repeat
+
+------------------------------------------------------------------------------
+Future TODO:
+- Update drive_to_point so that it can fit in while loop
+    * set as command line and input TIME into the func
+    * use control()
+
+- Upgrade manual_set_robot_pose() when ROBOT cannot see landmarks (cannot localise)
+    * Identify the time when it not see and see landmarks
+    * Calculate the pose based on the TIME and VEL
+
+- Modify GUI
+'''
