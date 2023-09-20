@@ -112,7 +112,7 @@ class Operate:
     # SLAM with ARUCO markers       
     def update_slam(self, drive_meas):
         # use arcuco_detector.py to call detect in-build func
-        # lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+        lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
         
         # CHECKING - pause to print LMS
         if self.request_recover_robot:
@@ -295,13 +295,13 @@ if __name__ == "__main__":
         while start:
 
             '''1. Robot drives to the waypoint'''
-            # cur_pose = operate.get_robot_pose()
-            # print(f"Current robot pose: {cur_pose}")
-            # operate.drive_to_point(waypoint)
+            cur_pose = operate.get_robot_pose()
+            print(f"Current robot pose: {cur_pose}")
+            operate.drive_to_point(waypoint)
 
             '''2. Manual compute robot pose (based on start pose & end points)'''
-            # operate.manual_set_robot_pose(cur_pose, waypoint)
-            # print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
+            operate.manual_set_robot_pose(cur_pose, waypoint)
+            print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
 
 
             '''3. Rotate at spot 360 & use SLAM to localise'''
