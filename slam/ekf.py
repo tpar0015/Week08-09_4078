@@ -231,6 +231,7 @@ class EKF:
     # ------------------
     @ staticmethod
     def to_im_coor(xy, res, m2pixel):
+    
         w, h = res
         x, y = xy
         x_im = int(-x*m2pixel+w/2.0)
@@ -243,7 +244,8 @@ class EKF:
         if not_pause:
             bg_rgb = np.array([213, 213, 213]).reshape(1, 1, 3)
         else:
-            bg_rgb = np.array([120, 120, 120]).reshape(1, 1, 3)
+            bg_rgb = np.array([119, 120, 120]).reshape(1, 1, 3)
+            
         canvas = np.ones((res[1], res[0], 3))*bg_rgb.astype(np.uint8)
         # in meters, 
         lms_xy = self.markers[:2, :]
