@@ -12,7 +12,8 @@ sys.path.insert(0, "{}/util".format(os.getcwd()))
 from pibot import PenguinPi    # access the robot
 import DatasetHandler as dh    # save/load functions
 import measure as measure      # measurements
-# import pygame                       # python package for GUI
+from gui import GUI             # GUI
+import pygame                       # python package for GUI
 
 #####################################
 '''Import Robot and EKF classes'''
@@ -28,7 +29,7 @@ import slam.aruco_detector as aruco
 ''' Merge auto_fruit_search in w8 into previous Operate class'''
 ####################################################################################
 class Operate:
-    def __init__(self, args):
+    def __init__(self, args, gui=True):
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # initialise data parameters
@@ -52,6 +53,10 @@ class Operate:
         # Use self.command to use self.control func inside POLLING loop
         self.command = {'motion': [0, 0]}
 
+
+        self.wheel_vel = 50
+        if gui:
+            self.gui = GUI(750,750) 
 
     '''
     ##############################################################################
@@ -169,12 +174,85 @@ class Operate:
     '''    
     def get_robot_pose(self):
         return self.ekf.robot.state[0:3, 0]
-    
+    def set_robot_pose(self, state):
+        self.ekf.robot.state[0:3, 0] = state
+
     # Waypoint navigation
     # the robot automatically drives to a given [x,y] coordinate
     # note that this function requires your camera and wheel calibration parameters from M2, and the "util" folder from M1
     # fully automatic navigation:
     # try developing a path-finding algorithm that produces the waypoints automatically
+    def get_turn_params(self, waypoint):
+        scale = self.ekf.robot.wheels_scale
+        baseline = self.ekf.robot.wheels_width
+        robot_pose = self.ekf.robot.state[0:3, 0]
+
+        angle_to_waypoint = np.arctan2((waypoint[1]-robot_pose[1]),(waypoint[0]-robot_pose[0])) # rad
+        robot_angle = robot_pose[2] - angle_to_waypoint
+        print(np.rad2deg(robot_angle))
+
+        turn_time = baseline/2 * robot_angle / (scale * self.wheel_vel)
+        turn_vel = self.wheel_vel
+
+        if turn_time < 0:
+            turn_time *=-1
+            turn_vel = self.wheel_vel * -1
+
+
+        return turn_vel, turn_time
+
+    def get_dist_params(self, waypoint):
+        # robot_pose = self.ekf.robot.state[0:3, 0]
+        robot_pose = self.get_robot_pose()
+        scale = self.ekf.robot.wheels_scale
+        baseline = self.ekf.robot.wheels_width
+
+        robot_dist = ((waypoint[1]-robot_pose[1]**2)+(waypoint[0]-robot_pose[0])**2)**(1/2)
+        drive_time = robot_dist / (scale * self.wheel_vel)
+        print(f"scale: {scale}, dist: {robot_dist}")
+        print("Driving for {:.5f} seconds".format(drive_time))
+        return drive_time
+
+    def drive_control(self, turn_vel, wheel_vel, vel_time, dt, turn=False):
+        time_series = np.arange(0, vel_time, dt)
+        #time_gui_update = []
+        average_gui_update_time = 0.055
+        time_series = np.arange(0, vel_time + average_gui_update_time*len(time_series), dt)
+        for t in time_series:
+            robot_pose = self.get_robot_pose()
+            if turn == True:
+                end_theta = robot_pose[2] + dt*turn_vel
+                end_point = robot_pose
+                end_point[2] = end_theta
+            else:
+                end_x = robot_pose[0] + dt*wheel_vel*np.cos(robot_pose[2])
+                end_y = robot_pose[1] - dt*wheel_vel*np.sin(robot_pose[2])
+                end_point = [end_x, end_y, robot_pose[2]]
+            self.manual_set_robot_pose(robot_pose,end_point)
+            self.pibot.set_velocity([0 + 1*(not turn), 1*turn], time=dt)
+            # EKF
+            # GUI
+            # Time it
+            #time_prev = time.time()
+            self.gui_update()
+            #time_after = time.time()
+            #time_gui_update.append(time_after - time_prev)
+
+
+        #print(f"Average time for GUI update: {np.mean(time_gui_update)}")
+
+    def gui_update(self):
+        for event in pygame.event.get():
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                self.gui.add_waypoint()
+                pygame.event.clear()
+            elif event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        self.gui.update_state(self.get_robot_pose())
+        self.gui.draw()
+
+
     def drive_to_point(self, waypoint):
         # Get dir
         # path = os.getcwd() + "/"
@@ -182,8 +260,6 @@ class Operate:
         # scale = np.loadtxt(fileS, delimiter=',')
         # fileB = "{}calibration/param/baseline.txt".format(path)
         # baseline = np.loadtxt(fileB, delimiter=',')
-        scale = self.ekf.robot.wheels_scale
-        baseline = self.ekf.robot.wheels_width
 
         # Get pose
         robot_pose = self.ekf.robot.state[0:3, 0]
@@ -191,36 +267,17 @@ class Operate:
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Turn toward waypoint
-        # Note that the angle here is between LINE_TO_WAYPOINT and y-axis
-        # ==> arctan(delta_x / delta_y)
-        angle_to_waypoint = np.arctan((waypoint[0]-robot_pose[0])/(waypoint[1]-robot_pose[1])) # rad
-        robot_angle = robot_pose[2] - angle_to_waypoint
-        wheel_vel = 10 # tick/s
-        # read baseline from numpy formation to float
-        # print(f"baseline: {baseline}, angle in degree: {robot_angle * 180 / np.pi}")
-        # input('Press ENTER to turn')
-        # turn_time = abs((baseline/2 * robot_angle) * wheel_vel)
-        turn_time = baseline/2 * robot_angle / (scale * wheel_vel)
-        print("Turning for {:.5f} seconds".format(turn_time))
-
-        # Account for negative angle
-        if turn_time < 0:
-            turn_time *=-1
-            turn_vel = wheel_vel * -1
-        # this similar to self.command['motion'] in prev M
-        self.pibot.set_velocity([0, 1], turning_tick=turn_vel, time=turn_time)    # turn on the spot
-
+        turn_vel, turn_time = self.get_turn_params(waypoint)
+        self.pibot.turning_tick = turn_vel
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # after turning, drive straight to the waypoint
-        robot_dist = ((waypoint[1]-robot_pose[1]**2)+(waypoint[0]-robot_pose[0])**2)**(1/2)
-        print(f"scale: {scale}, dist: {robot_dist}")
-        input('Press ENTER to turn')
-        drive_time = robot_dist / (scale * wheel_vel)
-        print("Driving for {:.5f} seconds".format(drive_time))
+        drive_time = self.get_dist_params(waypoint)
+        self.pibot.tick = self.wheel_vel
         # this similar to self.command['motion'] in prev M
-        self.pibot.set_velocity([1, 0], tick=wheel_vel, time=drive_time)   # drive straight
+        dt = 0.1
+        self.drive_control(turn_vel, self.wheel_vel, turn_time, dt, turn=True)
+        self.drive_control(turn_vel, self.wheel_vel, drive_time, dt, turn=False)
         ####################################################
-
         print(f"Arrived at [{waypoint[0]}, {waypoint[1]}]")
 
     def manual_set_robot_pose(self, start_pose, end_point):
@@ -229,15 +286,15 @@ class Operate:
         - from inputs (starting robot's pose, end point) --> compute and save robot pose at end point
         - !!! FOR NOW !!! theta at endpoint is along the LINE_TO_WAYPOINT
         '''
-        x = start_pose[0] + end_point[0]
-        y = start_pose[1] + end_point[1]
+        x = end_point[0]
+        y = end_point[1]
         # do pretty much the same calculation as in drive_to_point()
-        theta = np.arctan((end_point[0]-start_pose[0])/(end_point[1]-start_pose[1])) # rad
-
+        theta = np.arctan2((end_point[1]-start_pose[1]),(end_point[0]-start_pose[0])) # rad
         # update robot pose
         self.ekf.robot.state[0] = x
         self.ekf.robot.state[1] = y
-        self.ekf.robot.state[2] = theta
+        print(end_point)
+        self.ekf.robot.state[2] = end_point[2]
 
     def stop(self):
         self.pibot.set_velocity([0, 0])
@@ -287,49 +344,60 @@ if __name__ == "__main__":
     #######################################################################################
 
     # Set up waypoint using format [x,y], in metres
-    waypoint = [0.3,0.4]
-
+    waypoint = [0.1,0.1]
+    operate.gui.add_manual_waypoint(waypoint)
     print("\n\n~~~~~~~~~~~~~\nStarting\n~~~~~~~~~~~~~\n\n")
+    # try:
+    #     while True:
+    #         # gui
+    #         operate.set_robot_pose([1,1,0])
+    #         operate.gui_update()
+    #         print(operate.get_turn_params([2,2,0]))
 
     try: 
+        i = 0
         while start:
-
+            waypoints = operate.gui.waypoints
+            waypoint = waypoints[i]
             '''1. Robot drives to the waypoint'''
-            # cur_pose = operate.get_robot_pose()
-            # print(f"Current robot pose: {cur_pose}")
-            # operate.drive_to_point(waypoint)
-
+            cur_pose = operate.get_robot_pose()
+            print(f"Current robot pose: {cur_pose}")
+            operate.drive_to_point(waypoint)
             '''2. Manual compute robot pose (based on start pose & end points)'''
-            # operate.manual_set_robot_pose(cur_pose, waypoint)
-            # print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
+            operate.manual_set_robot_pose(cur_pose, waypoint)
+            print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
 
-
+            '''Go to next waypoint'''
+            if i < len(waypoints) - 1:
+                i += 1      
             '''3. Rotate at spot 360 & use SLAM to localise'''
-            rot_360 = True
-            operate.ekf_on = True
-            scale = operate.ekf.robot.wheels_scale
-            baseline = operate.ekf.robot.wheels_width
-            # get self.pibot.turning_tick to compute turning time
-            rot_360_time = baseline/2 * (2*np.pi) / (scale * operate.pibot.turning_tick)
-            start_time = time.time()
+            # rot_360 = True
+            # operate.ekf_on = True
+            # scale = operate.ekf.robot.wheels_scale
+            # baseline = operate.ekf.robot.wheels_width
+            # # get self.pibot.turning_tick to compute turning time
+            # rot_360_time = baseline/2 * (2*np.pi) / (scale * operate.pibot.turning_tick)
+            # start_time = time.time()
 
-            while rot_360:
-                
-                cur_time = time.time()
-                operate.command["motion"] = [0, 1]
-                drive_meas = operate.control()
+            # while rot_360:
+            #     gui.update_state(operate.get_robot_pose())
+            #     gui.draw()
+            #     cur_time = time.time()
+            #     operate.command["motion"] = [0, 1]
+            #     drive_meas = operate.control()
 
-                ''' TODO: check here'''
-                # operate.update_slam(drive_meas)
-                # print(operate.ekf.)
-                # check time to exit
-                if (cur_time - start_time) >= rot_360_time:
-                    rot_360 = False
-                    operate.command["motion"] = [0, 0]
-                    print(f"Finished rotating 360 degree; New robot pose: {operate.get_robot_pose()}")
+            #     ''' TODO: check here'''
+            #     # operate.update_slam(drive_meas)
+            #     # print(operate.ekf.)
+            #     # check time to exit
+            #     if (cur_time - start_time) >= rot_360_time:
+            #         rot_360 = False
+            #         operate.command["motion"] = [0, 0]
+            #         print(f"Finished rotating 360 degree; New robot pose: {operate.get_robot_pose()}")
 
             
-            start = False
+            if i == len(waypoints) - 1:
+                start = False
 
     except KeyboardInterrupt:
         operate.stop()
