@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import time
 import pygame
-
+from w8HelperFunc import *
 class GUI:
     def __init__(self, width, height):
         self.width = width
@@ -17,6 +17,7 @@ class GUI:
         self.pibot_pic = pygame.transform.rotate(pygame.image.load("pics/8bit/pibot_top.png"),180)
         self.state = [100, 100, 0]
         self.waypoints = []
+        _, _, self.landmarks = read_true_map("M4_prac_map_full.txt")
         pygame.font.init()
         self.m2pixel = width / 3    # pixels / meter
 
@@ -54,7 +55,9 @@ class GUI:
         self.screen.fill((0, 0, 0))
         self.screen.blit(self.bg, (0, 0))
         state_surf = self.draw_state()
+        landmark_surf = self.draw_landmarks()
         self.screen.blit(state_surf, (0, 0))
+        self.screen.blit(landmark_surf, (0, 0))
         self.draw_waypoints()
 
         pygame.display.flip()
@@ -70,6 +73,24 @@ class GUI:
 
     def add_manual_waypoint(self, waypoint):
         self.waypoints.append(waypoint)
+
+    def draw_landmarks(self):
+        bg_rgb = np.array([120, 120, 120]).reshape(1, 1, 3)
+        canvas = np.ones((self.width,self.height, 3))*bg_rgb.astype(np.uint8)
+        surface = pygame.surfarray.make_surface(canvas)
+        surface = pygame.transform.flip(surface, True, False)
+        for i in range(len(self.landmarks)):
+            x,y = self.landmarks[i]
+            x = (x) * self.m2pixel + self.width/2
+            y = (y) * self.m2pixel  + self.height/2
+            surface.blit(pygame.image.load(f"pics/8bit/lm_{i + 1}.png"), (x-15, y-15))
+            # Label the landmarks
+            # font = pygame.font.Font('freesansbold.ttf', 12)
+            # text = font.render(str(i + 1) , True, (255, 255, 255), (120, 120, 120))
+            # textRect = text.get_rect()
+            # textRect.center = (x, y + 20)
+            # self.screen.blit(text, textRect)
+        return surface
 
 
     def draw_waypoints(self):
@@ -87,6 +108,9 @@ class GUI:
             self.screen.blit(text, textRect)
 
 if __name__=="__main__":
+    _, _, landmarks = read_true_map("M4_prac_map_full.txt")
+    print(landmarks)
+    print('done')
     gui = GUI(750, 750)
     theta_range = np.linspace(0, 360, 100)
     i_range = np.linspace(0, 500, 100)
