@@ -8,6 +8,9 @@ import json
 import argparse
 import time
 
+import matplotlib.pyplot as plt
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
 #testing git
 
 # import SLAM components
@@ -22,6 +25,10 @@ from pibot import PenguinPi
 import measure as measure
 
 
+def getImage(path, zoom=1):
+    return OffsetImage(plt.imread(path), zoom=zoom)
+
+########################################################################3
 def read_true_map(fname):
     """Read the ground truth map and output the pose of the ArUco markers and 5 target fruits&vegs to search for
 
@@ -84,16 +91,27 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     @param fruit_true_pos: positions of the target fruits
     """
 
+    fruit_coor = []
+
     print("Search order:")
     n_fruit = 1
     for fruit in search_list:
         for i in range(len(fruit_list)): # there are 5 targets amongst 10 objects
             if fruit == fruit_list[i]:
+
+                ''' #BL: added return coordinations of fruits'''
+                x_pos = np.round(fruit_true_pos[i][0], 2)
+                y_pos = np.round(fruit_true_pos[i][1], 2)
+                fruit_coor.append([x_pos, y_pos])
                 print('{}) {} at [{}, {}]'.format(n_fruit,
-                                                  fruit,
-                                                  np.round(fruit_true_pos[i][0], 1),
-                                                  np.round(fruit_true_pos[i][1], 1)))
+                                                    fruit,
+                                                    x_pos,
+                                                    y_pos))
         n_fruit += 1
+
+    ''' #BL: added return coordinations of fruits'''
+    return fruit_coor
+
 
 
 # Waypoint navigation
