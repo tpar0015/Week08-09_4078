@@ -318,35 +318,73 @@ if __name__ == "__main__":
         obstacles = []
         for obs in obs_pos:
             # print(obstacles)
-            # obstacles.append(Circle(c_x=obs[0], c_y=obs[1], radius=0.2))
-            obstacles.append(Rectangle(center=obs, width=0.2, height=0.2))
+            # obstacles.append(Circle(c_x=obs[0], c_y=obs[1], radius=0.13))
+            obstacles.append(Rectangle(center=obs, width=0.25, height=0.25))
 
         print("Obstacles len: ", len(obstacles))
 
+        # #######################################################################################
         # Set up waypoint using format [x,y], in metres
         # waypoint = [0.3,0.4]
         initial_robot_pos = [0,0]       # exclude theta
-        robot_step_size = 0.05
-        ccw = False
-
-        waypoint_path = np.zeros([1,2])      # init
+        robot_step_size = 0.05      # Smallest step between each waypoint
+        ccw = False             # Direction for "bug" to wrap around Obstacles
+        goal_tolerance = 0.1        # Distance to goal to consider as reached
+        
+        # Create a dictionary of waypoints, each key is the fruit in search_list
+        waypoint = {}
+        for fruit in search_list:
+            waypoint[fruit] = np.zeros((1,2))
+        # print(waypoint)
+        
         step_list = []
+        # prev_waypoint = 0
 
-        # #######################################################################################
         print("\n\t- Generating pathway for NAVIGATION - \n")
         # Generate path - list of waypoints
-        for target in target_fruits_pos:
+        for fruit, target in zip(search_list, target_fruits_pos):
             goal_pos = target
 
+            # Save the prev waypoint to compute the middle point - interconnect between each path
+            # prev_last_waypoint = waypoint_path[-1].reshape(1,2)
+            # print(prev_last_waypoint)
+
             # The code below finds the path using bug2 algorithm
-            path = navi.bug2_algorithm(goal_pos, initial_robot_pos, robot_step_size, obstacles, ccw, tolerance = 0.02)
-            # print(path.shape)
+            path = navi.bug2_algorithm(goal_pos, initial_robot_pos, robot_step_size, obstacles, ccw, goal_tolerance)
+            print(f"Debugging: initial shape: {path.shape}", end = "\t")
 
-            # Clip the first 3 and last 3 waypoints
-            path = path[3:-3]
+            # Clip some point from the start until the distance > goal_tolerance
+            while True:
+                if len(path) == 1:
+                    break
+                if navi.compute_distance_between_points(path[0], initial_robot_pos) > goal_tolerance:
+                    break
+                else:
+                    # print(f"Delete {path[0]}")
+                    path = np.delete(path, 0, axis = 0)
 
-            # Append to the big list of waypoint
-            waypoint_path = np.append(waypoint_path, path, axis = 0)
+            # Same thing for those points at the end
+            while True:
+                if len(path) == 1:
+                    break
+                if navi.compute_distance_between_points(path[-1], goal_pos) > goal_tolerance:
+                    break
+                else:
+                    print(f"Delete {path[-1]}")
+                    path = np.delete(path, -1, axis = 0)
+
+            print(f"--> reduce to shape: {path.shape}")
+
+
+            # cur_first_waypoint = path[0].reshape(1,2)
+            # inter_connect_waypoint = (prev_last_waypoint + cur_first_waypoint)/2
+
+            # print(inter_connect_waypoint.shape)
+
+            waypoint[fruit] = path
+            # Add the prev waypoint to the path - to interconnect between each path
+            # waypoint_path = np.append(waypoint_path, inter_connect_waypoint, axis = 0)
+
             # print(waypoint_path.shape)
 
             # Append to the list of steps
@@ -357,92 +395,113 @@ if __name__ == "__main__":
             initial_robot_pos = goal_pos
             print(f"Reached target fruit {goal_pos} after {len(path)} steps\n")
 
-        print(f"--> Total steps: {len(waypoint_path)}")
+            '''For debugging'''
+            # input("Press enter to continue")
 
-        # Plot all the waypoints
-        for waypoint in waypoint_path:
-            plt.plot(waypoint[0], waypoint[1], 'ro')
+        print(f"--> Total steps: {sum(step_list)}")
+
+
+        # Create a list of 5 different marker color
+        marker_color = ['y-', 'c-', 'm-', 'k-', 'g-']
+        # marker_color = ['yo', 'co', 'mo', 'ko', 'w', 'g' ]
+
+        # Plot the current path
+        # i = 0
+        marker_color_idx = 0
+        for fruit, path in waypoint.items():
+            plt.plot(path[:,0], path[:,1], marker_color[marker_color_idx], alpha=0.5)
+            marker_color_idx += 1
+
+        # Show legend with marker_color list as fruit name
+        plt.legend(search_list, loc='upper left')
+
+        # ###################################################################################
         # Plot all the obstacles
         for obs in obs_pos:
             plt.plot(obs[0], obs[1], 'bx')
+        for obstacle_outline in obstacles:
+            plt.plot(obstacle_outline.vertices[:,0], obstacle_outline.vertices[:,1], 'b-', linewidth=0.5)
         # Plot all the target fruit
         for target in target_fruits_pos:
-            plt.plot(target[0], target[1], 'go')
-        plt.show()
+            plt.plot(target[0], target[1], 'bo')
 
+        plt.title("Waypoint path")
+        plt.axis('equal')
+        plt.show()
 
         ########################################################################################
         
         # Initialise
-        # operate = Operate(args)
-        # operate.stop()
-        # start = 1
+        start = 0
         
-        # # Save aruco position for SLAM / EKF functions
-        # # operate.create_lms(tags = aruco_taglist, markers=aruco_true_pos)
-        # # # print aruco locs
-        # # for idx, tag in enumerate(aruco_taglist):
-        # #     print(f"Arcuco{tag}: \t{operate.ekf.markers[idx]}")
+        # Save aruco position for SLAM / EKF functions
+        # operate.create_lms(tags = aruco_taglist, markers=aruco_true_pos)
+        # # print aruco locs
+        # for idx, tag in enumerate(aruco_taglist):
+        #     print(f"Arcuco{tag}: \t{operate.ekf.markers[idx]}")
 
-        # #######################################################################################
+        #######################################################################################
 
         
-        # print("\n\n~~~~~~~~~~~~~\nStarting\n~~~~~~~~~~~~~\n\n")
+        print("\n\n~~~~~~~~~~~~~\nStarting\n~~~~~~~~~~~~~\n\n")
 
         
-        #     # while start:
-        #     step_counter = 0
-        #     waypoint_counter = 0
-        #     for idx, waypoint in enumerate(waypoint_path[2:]):
+        if start:
+            
+            operate = Operate(args)
+            operate.stop()
+        
+            step_counter = 0
+            waypoint_counter = 0
+            for fruit, path in waypoint.items():
+                for waypoint in path:
+                    '''1. Robot drives to the waypoint'''
+                    start_pose = operate.get_robot_pose()
+                    print(f"\nNext waypoint {waypoint}")
+                    operate.drive_to_point(waypoint, debug = False, wheel_vel=30)
 
-        #         '''1. Robot drives to the waypoint'''
-        #         start_pose = operate.get_robot_pose()
-        #         print(f"\nNext waypoint {waypoint}")
-        #         operate.drive_to_point(waypoint, debug = False, wheel_vel=30)
+                    '''2. Manual compute robot pose (based on start pose & end points)'''
+                    operate.manual_set_robot_pose(start_pose, path[-1])
+                    pose = operate.get_robot_pose()
+                    theta = np.rad2deg(pose[2])
+                    # pose[2] = theta
+                    print(f"--->Arrived at {waypoint} - Robot pose: {theta}")
 
-        #         '''2. Manual compute robot pose (based on start pose & end points)'''
-        #         operate.manual_set_robot_pose(start_pose, waypoint)
-        #         pose = operate.get_robot_pose()
-        #         theta = np.rad2deg(pose[2])
-        #         pose[2] = theta
-        #         print(f"--->Arrived at {waypoint} - Robot pose: {pose}")
+                    waypoint_counter += 1
+                    if (waypoint_counter == step_list[step_counter]):
+                        step_counter +=1
+                        waypoint_counter = 0
+                        print("Reach target fruit")
+                        input("Enter to continute")
 
-        #         waypoint_counter += 1
-        #         if (waypoint_counter == step_list[step_counter]):
-        #             step_counter +=1
-        #             waypoint_counter = 0
-        #             print("Reach target fruit")
-        #             input("Enter to continute")
-
-        #         '''3. Rotate at spot 360 & use SLAM to localise'''
-        #         # rot_360 = True
-        #         # operate.ekf_on = True
-        #         # scale = operate.ekf.robot.wheels_scale
-        #         # baseline = operate.ekf.robot.wheels_width
-        #         # # get self.pibot.turning_tick to compute turning time
-        #         # rot_360_time = baseline/2 * (2*np.pi) / (scale * operate.pibot.turning_tick)
-        #         # start_time = time.time()
-        #         # while rot_360:
-        #         #     cur_time = time.time()
-        #         #     operate.command["motion"] = [0, 1]
-        #         #     drive_meas = operate.control()
-        #         #     ''' TODO: check here'''
-        #         #     # operate.update_slam(drive_meas)
-        #         #     # print(operate.ekf.)
-        #         #     # check time to exit
-        #         #     if (cur_time - start_time) >= rot_360_time:
-        #         #         rot_360 = False
-        #         #         operate.command["motion"] = [0, 0]
-        #         #         print(f"Finished rotating 360 degree; New robot pose: {operate.get_robot_pose()}")
-        #         # start = False
+            #         '''3. Rotate at spot 360 & use SLAM to localise'''
+            #         # rot_360 = True
+            #         # operate.ekf_on = True
+            #         # scale = operate.ekf.robot.wheels_scale
+            #         # baseline = operate.ekf.robot.wheels_width
+            #         # # get self.pibot.turning_tick to compute turning time
+            #         # rot_360_time = baseline/2 * (2*np.pi) / (scale * operate.pibot.turning_tick)
+            #         # start_time = time.time()
+            #         # while rot_360:
+            #         #     cur_time = time.time()
+            #         #     operate.command["motion"] = [0, 1]
+            #         #     drive_meas = operate.control()
+            #         #     ''' TODO: check here'''
+            #         #     # operate.update_slam(drive_meas)
+            #         #     # print(operate.ekf.)
+            #         #     # check time to exit
+            #         #     if (cur_time - start_time) >= rot_360_time:
+            #         #         rot_360 = False
+            #         #         operate.command["motion"] = [0, 0]
+            #         #         print(f"Finished rotating 360 degree; New robot pose: {operate.get_robot_pose()}")
+            #         # start = False
 
     except KeyboardInterrupt:
-        # operate.stop()
+
+        if start:
+            operate.stop()
+
         exit()
-
-    # if start:
-    #     operate.stop()
-
 
 
 '''

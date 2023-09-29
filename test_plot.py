@@ -1,13 +1,26 @@
-import matplotlib.pyplot as plt
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import w8HelperFunc as w8
+# basic python packages
+import sys, os
 import cv2
 import numpy as np
+import json
+import argparse
+import time
+import w8HelperFunc as w8
+from Prac4_Support.Obstacle import *
+import navigate_algo as navi
+
+import matplotlib.pyplot as plt
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
+# import utility functions
+sys.path.insert(0, "{}/util".format(os.getcwd()))
+from pibot import PenguinPi    # access the robot
+import DatasetHandler as dh    # save/load functions
+import measure as measure      # measurements
 
 
 def test_opencv_circle():
         
-    
     # Reading an image in default mode
     Img = np.zeros((512, 512, 3), np.uint8)
         
@@ -58,5 +71,45 @@ def test_plot_icons():
 
 
 if __name__ == '__main__':
-    test_opencv_circle()
-    # test_plot_icons()
+    # # define circle centre as origin
+    # centre = np.array([5,0])
+    # circle1 = Circle(centre[0], centre[1], 3)
+    # print(circle1.vertices)
+
+    # # # Plot the origin in red and vertices in blue
+    # # plt.scatter(centre[0], centre[1], color='r')
+    # # plt.scatter(circle1.vertices[:,0], circle1.vertices[:,1], color='b')
+
+    # # # Both axes same scale
+    # # plt.axis('equal')
+    # # plt.show()
+
+    # # Init
+    # initial_robot_pos = np.array([0, 0])
+    # robot_step_size = 0.1
+    # obstacles = [circle1]
+    # ccw = True
+
+    # # Check path
+    # goal_pos = np.array([20, 0])
+    
+    # path = navi.bug2_algorithm(goal_pos, initial_robot_pos, robot_step_size, obstacles, ccw, tolerance = 0.02)
+
+    # # Plot path
+    # plt.scatter(path[:,0], path[:,1], color='b')
+    # plt.scatter(centre[0], centre[1], color='r')
+    # plt.scatter(goal_pos[0], goal_pos[1], color='g')
+    # plt.scatter(initial_robot_pos[0], initial_robot_pos[1], color='y')
+    # plt.axis('equal')
+    # plt.show()
+
+
+    dict1 = {
+        "banana": [1,2],
+        "apple": [2,3],
+        "lemon": [3,4]
+    }
+
+    for fruit, coor in dict1.items():
+        print(fruit)
+        print(coor)

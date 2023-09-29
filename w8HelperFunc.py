@@ -1,5 +1,4 @@
 # M4 - Autonomous fruit searching
-
 # basic python packages
 import sys, os
 import cv2
@@ -7,24 +6,34 @@ import numpy as np
 import json
 import argparse
 import time
+import w8HelperFunc as w8
+from Prac4_Support.Obstacle import *
+import navigate_algo as navi
 
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
-#testing git
+# import utility functions
+sys.path.insert(0, "{}/util".format(os.getcwd()))
+from pibot import PenguinPi    # access the robot
+import DatasetHandler as dh    # save/load functions
+import measure as measure      # measurements
+# import pygame                       # python package for GUI
 
-# import SLAM components
+#####################################
+'''Import Robot and EKF classes'''
+#####################################
 sys.path.insert(0, "{}/slam".format(os.getcwd()))
 from slam.ekf import EKF
 from slam.robot import Robot
 import slam.aruco_detector as aruco
 
-# import utility functions
-sys.path.insert(0, "{}/util")
-from pibot import PenguinPi
-import measure as measure
+
+########################################################################3
+# For path planning
 
 
+########################################################################3
 def getImage(path, zoom=1):
     return OffsetImage(plt.imread(path), zoom=zoom)
 
