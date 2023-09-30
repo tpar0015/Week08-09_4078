@@ -183,13 +183,13 @@ class Rectangle(Polygon):
 ############################################################################################
 class Circle(Polygon):
     
-    def __init__(self, c_x, c_y, radius):
+    def __init__(self, c_x, c_y, radius, num_vertices=36):
         self.center = np.array([c_x, c_y])
         self.radius = radius
 
         # Create an array of points that define the circle - use 10 degree increments
         self.vertices = []
-        for i in range(0, 360, 10):
+        for i in range(0, 360, int(360 / num_vertices)):
             self.vertices.append([c_x + radius * np.cos(i * np.pi / 180), c_y + radius * np.sin(i * np.pi / 180)])
 
         Polygon.__init__(self, vertices=np.array(self.vertices))

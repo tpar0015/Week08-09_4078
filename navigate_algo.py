@@ -119,6 +119,7 @@ def bug2_algorithm(goal_pos, initial_robot_pos, robot_step_size, obstacles, ccw,
 ####################################################################################
 # Helper functions
 ####################################################################################
+
 def find_closest_obstacle(position, obstacle_list, ccw):
     results = [obs.compute_distance_point_to_polygon(position, ccw) for obs in obstacle_list]
     closest_obs = np.argmin([v[0] for v in results])

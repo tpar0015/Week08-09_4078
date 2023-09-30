@@ -4,10 +4,14 @@ import numpy as np
 import time
 import pygame
 from w8HelperFunc import *
+
+
 class GUI:
-    def __init__(self, width, height):
+
+    def __init__(self, width, height, map):
         self.width = width
         self.height = height
+        # Create surface
         self.screen = pygame.display.set_mode((width, height))
         self.screen.fill((0, 0, 0))
         pygame.display.set_caption("GUI")
@@ -17,7 +21,8 @@ class GUI:
         self.pibot_pic = pygame.transform.rotate(pygame.image.load("pics/8bit/pibot_top.png"),180)
         self.state = [100, 100, 0]
         self.waypoints = []
-        _, _, self.landmarks = read_true_map("M4_prac_map_full.txt")
+        # _, _, self.landmarks = read_true_map(map)
+        self.landmarks = [[0.0, 0.0], [.5, .5], [1, 1]]
         pygame.font.init()
         self.m2pixel = width / 3    # pixels / meter
 
@@ -51,6 +56,7 @@ class GUI:
         rot_rect.center = rot_image.get_rect().center
         rot_image = rot_image.subsurface(rot_rect).copy()
         return rot_image
+    
     def draw(self):
         self.screen.fill((0, 0, 0))
         self.screen.blit(self.bg, (0, 0))
@@ -61,6 +67,7 @@ class GUI:
         self.draw_waypoints()
 
         pygame.display.flip()
+
     def add_waypoint(self):
         print(pygame.mouse.get_pos())
         x,y = pygame.mouse.get_pos()
@@ -80,6 +87,7 @@ class GUI:
         surface = pygame.surfarray.make_surface(canvas)
         surface = pygame.transform.flip(surface, True, False)
         for i in range(len(self.landmarks)):
+
             x,y = self.landmarks[i]
             x = (x) * self.m2pixel + self.width/2
             y = (y) * self.m2pixel  + self.height/2
@@ -107,11 +115,15 @@ class GUI:
             textRect.center = (x, y + 20)
             self.screen.blit(text, textRect)
 
+
 if __name__=="__main__":
+
     _, _, landmarks = read_true_map("M4_prac_map_full.txt")
     print(landmarks)
     print('done')
-    gui = GUI(750, 750)
+
+    gui = GUI(750, 750, "M4_prac_map_full.txt")
+
     theta_range = np.linspace(0, 360, 100)
     i_range = np.linspace(0, 500, 100)
     j_range = np.linspace(0, 500, 100)

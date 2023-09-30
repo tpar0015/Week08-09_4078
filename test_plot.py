@@ -102,14 +102,57 @@ if __name__ == '__main__':
     # plt.scatter(initial_robot_pos[0], initial_robot_pos[1], color='y')
     # plt.axis('equal')
     # plt.show()
+    
+    x = np.linspace(0, 10, 500)
+    y = np.sin(x**2)+np.cos(x)
+    
+    fig, ax = plt.subplots()
+    
+    ax.plot(x, y, label ='Line 1')
+    
+    ax.plot(x, y - 0.6, label ='Line 2')
+    
+    ax.legend()
+    
+    fig.suptitle("""matplotlib.figure.Figure.show()
+    function Example\n\n""", fontweight ="bold") 
+    
+    fig.show() 
+    ##################
+    # dict1 = {
+    #     "banana": [1,2],
+    #     "apple": [2,3],
+    #     "lemon": [3,4]
+    # }
 
+    # for fruit, coor in dict1.items():
+    #     print(fruit)
+    #     print(coor)
 
-    dict1 = {
-        "banana": [1,2],
-        "apple": [2,3],
-        "lemon": [3,4]
-    }
+    if start:
+        i = 0
+        operate = Operate(args)
+        operate.stop()
+        waypoint = [0.0, 0.0]
+        operate.gui.add_manual_waypoint(waypoint)
+        print("\n\n~~~~~~~~~~~~~\nStarting\n~~~~~~~~~~~~~\n\n")
+        input("Enter to start")
 
-    for fruit, coor in dict1.items():
-        print(fruit)
-        print(coor)
+        while start:
+            waypoints = operate.gui.waypoints
+            waypoint = waypoints[i]
+            '''1. Robot drives to the waypoint'''
+            cur_pose = operate.get_robot_pose()
+            print(f"Current robot pose: {cur_pose}")
+            operate.drive_to_point(waypoint)
+            '''2. Manual compute robot pose (based on start pose & end points)'''
+            operate.manual_set_robot_pose(cur_pose, waypoint)
+            print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
+
+            '''Go to next waypoint'''
+            if i < len(waypoints) - 1:
+                i += 1      
+
+            '''STOP'''
+            if i == len(waypoints) - 1:
+                start = False
