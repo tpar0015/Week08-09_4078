@@ -14,15 +14,20 @@ class GUI:
         # Create surface
         self.screen = pygame.display.set_mode((width, height))
         self.screen.fill((0, 0, 0))
+
+        self.bg = pygame.image.load("pics/gui_mask_bg.jpg") # starry galxy background
         pygame.display.set_caption("GUI")
-        pygame.display.flip()
+        # pygame.display.flip()
+
         self.clock = pygame.time.Clock()
-        self.bg = pygame.image.load("pics/gui_mask.png")
+        
+        # Robot params
         self.pibot_pic = pygame.transform.rotate(pygame.image.load("pics/8bit/pibot_top.png"),180)
         self.state = [100, 100, 0]
         self.waypoints = []
         # _, _, self.landmarks = read_true_map(map)
         self.landmarks = [[0.0, 0.0], [.5, .5], [1, 1]]
+        
         pygame.font.init()
         self.m2pixel = width / 3    # pixels / meter
 
@@ -58,13 +63,15 @@ class GUI:
         return rot_image
     
     def draw(self):
+        # Fill the surface with sold color
         self.screen.fill((0, 0, 0))
+        # draw one image onto another
         self.screen.blit(self.bg, (0, 0))
         state_surf = self.draw_state()
-        landmark_surf = self.draw_landmarks()
+        # landmark_surf = self.draw_landmarks()
         self.screen.blit(state_surf, (0, 0))
-        self.screen.blit(landmark_surf, (0, 0))
-        self.draw_waypoints()
+        # self.screen.blit(landmark_surf, (0, 0))
+        # self.draw_waypoints()
 
         pygame.display.flip()
 
@@ -118,29 +125,25 @@ class GUI:
 
 if __name__=="__main__":
 
-    _, _, landmarks = read_true_map("M4_prac_map_full.txt")
-    print(landmarks)
-    print('done')
-
     gui = GUI(750, 750, "M4_prac_map_full.txt")
 
-    theta_range = np.linspace(0, 360, 100)
-    i_range = np.linspace(0, 500, 100)
-    j_range = np.linspace(0, 500, 100)
-    states = []
-    for i,j,theta in zip(i_range, j_range, theta_range):
-        states.append([i, j, theta])
-    i = 1
+    # theta_range = np.linspace(0, 360, 100)
+    # i_range = np.linspace(0, 500, 100)
+    # j_range = np.linspace(0, 500, 100)
+    # states = []
+    # for i,j,theta in zip(i_range, j_range, theta_range):
+    #     states.append([i, j, theta])
+    # i = 1
     # Event Listener
     while True:
         gui.draw()
-        time.sleep(0.1)
-        gui.update_state(states[i]) 
-        for event in pygame.event.get():
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                gui.add_waypoint()
-            elif event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-        if i < len(states)- 1 :
-            i += 1
+        # time.sleep(0.1)
+        # gui.update_state(states[i]) 
+        # for event in pygame.event.get():
+        #     if event.type == pygame.MOUSEBUTTONDOWN:
+        #         gui.add_waypoint()
+        #     elif event.type == pygame.QUIT:
+        #         pygame.quit()
+        #         sys.exit()
+        # if i < len(states)- 1 :
+        #     i += 1

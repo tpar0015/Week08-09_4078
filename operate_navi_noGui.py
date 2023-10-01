@@ -257,14 +257,6 @@ class Operate:
         self.gui.draw()
 
 
-    # def drive_to_point(self, waypoint):
-    #     # Get dir
-    #     # path = os.getcwd() + "/"
-    #     # fileS = "{}calibration/param/scale.txt".format(path)
-    #     # scale = np.loadtxt(fileS, delimiter=',')
-    #     # fileB = "{}calibration/param/baseline.txt".format(path)
-    #     # baseline = np.loadtxt(fileB, delimiter=',')
-
     ''' Added two arguments'''
     def drive_to_point(self, waypoint, wheel_vel = 20):
         
@@ -300,8 +292,8 @@ class Operate:
         else:
             turn_vel = wheel_vel
         # this similar to self.command['motion'] in prev M
-        # self.pibot.turning_tick = turn_vel
-        # self.pibot.set_velocity([0, 1], time=turn_time)    # turn on the spot
+        self.pibot.turning_tick = turn_vel
+        self.pibot.set_velocity([0, 1], time=turn_time)    # turn on the spot
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # after turning, drive straight to the waypoint
@@ -309,8 +301,8 @@ class Operate:
         drive_time = robot_dist / (scale * wheel_vel)
         
         # this similar to self.command['motion'] in prev M
-        # self.pibot.tick= wheel_vel
-        # self.pibot.set_velocity([1, 0], time=drive_time)   # drive straight   
+        self.pibot.tick= wheel_vel
+        self.pibot.set_velocity([1, 0], time=drive_time)   # drive straight   
 
 
     def manual_set_robot_pose(self, start_pose, end_point, debug = False):
@@ -359,7 +351,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
     # parser.add_argument("--map", type=str, default='Home_test_map.txt')
-    parser.add_argument("--map", type=str, default='M4_prac_map_full.txt')
+    parser.add_argument("--map", type=str, default='map/M4_prac_map_full.txt')
     args, _ = parser.parse_known_args()
 
     # read in the true map
