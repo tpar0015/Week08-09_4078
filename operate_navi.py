@@ -265,6 +265,7 @@ class Operate:
         # scale = np.loadtxt(fileS, delimiter=',')
         # fileB = "{}calibration/param/baseline.txt".format(path)
         # baseline = np.loadtxt(fileB, delimiter=',')
+        pass
     ''' Added two arguments'''
     def drive_to_point(self, waypoint, debug=False, wheel_vel = 20):
         
