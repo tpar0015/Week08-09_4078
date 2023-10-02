@@ -202,3 +202,46 @@ def polygonArea(X, Y, n):
         area = area + (X[j] + X[i]) * (Y[j] - Y[i])
         j = i   # j is previous vertex to i
     return int(abs(area / 2.0))
+
+#######################################################################
+def shortest_arc_points(center, radius, point1, point2, num_points=10):
+    """
+    Generate points along the shortest arc between two points on a circle.
+
+    Args:
+        center (tuple): (x, y) coordinates of the circle's center.
+        point1 (tuple): (x, y) coordinates of the first point.
+        point2 (tuple): (x, y) coordinates of the second point.
+        num_points (int): Number of points to generate along the arc.
+
+    Returns:
+        list: List of (x, y) coordinates representing the points along the arc.
+    """
+    # Calculate the coordinates of the points relative to the center
+    relative_point1 = (point1[0] - center[0], point1[1] - center[1])
+    relative_point2 = (point2[0] - center[0], point2[1] - center[1])
+
+    # Calculate the angle between the two points
+    angle1 = np.arctan2(relative_point1[1], relative_point1[0])
+    angle2 = np.arctan2(relative_point2[1], relative_point2[0])
+
+    # Calculate the angular difference (shortest arc)
+    angle_diff = angle2 - angle1
+
+    # Ensure the arc is in the correct direction
+    if angle_diff < 0:
+        angle_diff += 2 * np.pi
+    if angle_diff > np.pi:
+        angle_diff -= 2 * np.pi
+
+    # Generate points along the arc
+    arc_points = []
+    for i in range(num_points):
+        # Interpolate angles
+        interpolated_angle = angle1 + i * (angle_diff / (num_points - 1))
+        # Calculate (x, y) coordinates relative to the center
+        x = center[0] + radius * np.cos(interpolated_angle)
+        y = center[1] + radius * np.sin(interpolated_angle)
+        arc_points.append([x,y] )  # Convert back to absolute coordinates
+
+    return arc_points

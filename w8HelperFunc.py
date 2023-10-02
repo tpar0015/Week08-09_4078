@@ -1,5 +1,4 @@
 # M4 - Autonomous fruit searching
-
 # basic python packages
 import sys, os
 import cv2
@@ -7,24 +6,183 @@ import numpy as np
 import json
 import argparse
 import time
+import w8HelperFunc as w8
+from Prac4_Support.Obstacle import *
+from Prac4_Support.math_functions import *
+import navigate_algo as navi
 
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
-#testing git
+# import utility functions
+sys.path.insert(0, "{}/util".format(os.getcwd()))
+from pibot import PenguinPi    # access the robot
+import DatasetHandler as dh    # save/load functions
+import measure as measure      # measurements
+# import pygame                       # python package for GUI
 
-# import SLAM components
+#####################################
+'''Import Robot and EKF classes'''
+#####################################
 sys.path.insert(0, "{}/slam".format(os.getcwd()))
 from slam.ekf import EKF
 from slam.robot import Robot
 import slam.aruco_detector as aruco
 
-# import utility functions
-sys.path.insert(0, "{}/util")
-from pibot import PenguinPi
-import measure as measure
+
+########################################################################
+# Path planning
+
+'''
+Input:
+    - target_fruit_list, target_fruits_pos, obstacles
+    - initial_robot_pos:    exclude theta for now
+    - robot_step_size:      steps per waypoint
+    - ccw:                  direction for "bug" to wrap around Obstacles
+    - goal_tolerance:       distance to goal to consider as reached !
+'''
+def get_path(target_fruit_list, target_fruit_pos, obstacles, initial_robot_pos = [0,0], robot_step_size=0.05, ccw=False, goal_tolerance=0.1):
+
+    ###########################################################################################
+    '''Create a dictionary of waypoints, each key is the fruit in search_list'''
+    ###########################################################################################
+    waypoint = {}
+    for fruit in target_fruit_list:
+        waypoint[fruit] = np.zeros((1,2))
+    # print(waypoint)
+
+    step_list = []
+    path_warp_goal = np.zeros((1,2))
+    # prev_waypoint = 0
+    
+    # Generate path - list of waypoints
+    for fruit, target in zip(target_fruit_list, target_fruit_pos):
+        goal_pos = target
+
+        # The code below finds the path using bug2 algorithm
+        path = navi.bug2_algorithm(goal_pos, initial_robot_pos, robot_step_size, obstacles, ccw, goal_tolerance)
+        
+        # print(f"Debugging ---- type: {type(path)} ---- initial shape: {path.shape}")
 
 
+        waypoint[fruit] = path
+
+        # Append to the list of steps
+        step = len(path)
+        step_list.append(step)
+
+        # update
+        initial_robot_pos = goal_pos
+        print(f"Reached target fruit {goal_pos} after {len(path)} steps\n")
+
+    ###########################################################################################
+    ''' Interconnect between each path '''
+    ###########################################################################################
+    for fruit_idx, fruit in enumerate(target_fruit_list):
+        if fruit_idx == len(target_fruit_list)-1:
+            break
+        ###############################################
+        # Get interconnect goal pos
+        interconnect_goal_pos = target_fruit_pos[fruit_idx]
+        # Create circle
+        num_vertices = 36
+        interconnect_goal = Circle(c_x=interconnect_goal_pos[0], c_y=interconnect_goal_pos[1], radius=0.1, num_vertices=num_vertices)
+        ###############################################
+        # Get path of current fruit
+        path = waypoint[fruit]
+        
+        # Get next path in waypoint
+        next_path = waypoint[target_fruit_list[fruit_idx+1]]
+        # Clip those start point (that suppose to be inside the circle)
+        while True:
+            if len(next_path) == 1: 
+                break
+            if navi.compute_distance_between_points(next_path[0], interconnect_goal_pos) > goal_tolerance: 
+                break
+            else: 
+                next_path = np.delete(next_path, 0, axis = 0)
+        ###############################################
+        # Find closest point on circle to path_end_point
+        wrap_start_idx, wrap_start_point = find_nearest(interconnect_goal.vertices, path[-1])
+        # Find closest point on circle to next_path_start_point
+        wrap_end_idx, wrap_end_point = find_nearest(interconnect_goal.vertices, next_path[0])
+        # print(wrap_start_idx, wrap_end_idx)
+        
+        # Create wrap around goal path
+        wrap_path = shortest_arc_points(interconnect_goal_pos, goal_tolerance, wrap_start_point, wrap_end_point, num_points=num_vertices)
+        # wrap_path = interconnect_goal.vertices[wrap_end_idx : wrap_start_idx]
+        ###############################################
+        # Update
+        waypoint[target_fruit_list[fruit_idx+1]] = next_path
+        waypoint[fruit] = np.append(path, wrap_path, axis = 0)
+        
+
+    return waypoint, step_list
+
+
+# Set up obstacles
+def get_obstacles(aruco_true_pos, fruits_true_pos, target_fruits_pos, shape = "rectangle"):
+    # Combine aruco landmark and remained fruit as obstacles
+    obs_pos = np.array(aruco_true_pos)
+
+    # Find fruits that are not in target list
+    for fruit_pos in fruits_true_pos:
+        # flag
+        same = False
+        x, y = fruit_pos
+        for target_fruit in target_fruits_pos:
+            x_target, y_target = target_fruit
+            if (x == x_target) and (y == y_target):
+                same = True; break
+        if not same:
+            obs_pos = np.append(obs_pos, [fruit_pos], axis = 0)
+            # print(f"New: {obs_pos[-1]}")    
+    # print(len(obs_pos))
+
+    # Set up obstacles with Rectangles outline
+    obstacles = []
+    for obs in obs_pos:
+        # print(obstacles)
+        # 
+        if (shape.lower() == "rectangle"):
+            obstacles.append(Rectangle(center=obs, width=0.25, height=0.25))
+        elif (shape.lower() == "circle"):
+            obstacles.append(Circle(c_x=obs[0], c_y=obs[1], radius=0.13))
+
+    # print("Obstacles len: ", len(obstacles))
+    return obstacles, obs_pos
+
+
+def plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obstacles):
+    # Create a list of 5 different marker color
+    marker_color = ['y-', 'c-', 'm-', 'k-', 'g-']
+    # marker_color = ['yo', 'co', 'mo', 'ko', 'w', 'g' ]
+
+    # Plot the current path
+    # i = 0
+    marker_color_idx = 0
+    for fruit, path in waypoint.items():
+        plt.plot(path[:,0], path[:,1], marker_color[marker_color_idx], alpha=0.5)
+        marker_color_idx += 1
+
+    # Show legend with marker_color list as fruit name
+    plt.legend(target_fruit_list, loc='upper left')
+
+    # ###################################################################################
+    # Plot all the obstacles
+    for obs in obs_pos:
+        plt.plot(obs[0], obs[1], 'bx')
+    for obstacle_outline in obstacles:
+        plt.plot(obstacle_outline.vertices[:,0], obstacle_outline.vertices[:,1], 'b-', linewidth=0.5)
+    # Plot all the target fruit
+    for target in target_fruits_pos:
+        plt.plot(target[0], target[1], 'bo')
+
+    plt.title("Waypoint path")
+    plt.axis('equal')
+    plt.show()
+
+########################################################################3
 def getImage(path, zoom=1):
     return OffsetImage(plt.imread(path), zoom=zoom)
 

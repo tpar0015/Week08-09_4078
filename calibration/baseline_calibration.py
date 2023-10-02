@@ -33,7 +33,9 @@ def calibrateBaseline():
                 continue
 
             # Spin the robot at the given speed for the given time
-            ppi.set_velocity([0, 1], tick=20,turning_tick=wheel_vel, time = delta_time)
+            ppi.turning_tick=wheel_vel
+            ppi.tick=20
+            ppi.set_velocity([0, 1], time = delta_time)
 
             uInput = input("Did the robot spin 360deg?[y/N]")
             if uInput == 'y':

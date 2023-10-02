@@ -8,7 +8,6 @@ class Polygon:
     Polygons are defined as an array with n rows (vertices) and 2 columns
     
     """
-
     def __init__(self, vertices=np.zeros((4,2))):
         self.vertices = vertices
         self.inner_vertices = None
@@ -111,9 +110,9 @@ class Polygon:
                          < polygonArea(polies[0][:, 0], polies[1][:, 1], num_points))]
         return self.inner_vertices
 
-    def to_display_format(self, screen_height):
-        coordinates = [coordinates_to_pygame(v, screen_height) for v in self.vertices[0:-1]]
-        return coordinates
+    # def to_display_format(self, screen_height):
+    #     coordinates = [coordinates_to_pygame(v, screen_height) for v in self.vertices[0:-1]]
+    #     return coordinates
 
 
     def is_in_collision_with_points(self, points, min_dist=2.5):
@@ -132,7 +131,7 @@ class Polygon:
                     count_collisions += 1
 
             if count_collisions % 2 == 1:
-                Qpoints_in_collision.append(point)
+                points_in_collision.append(point)
 
         if len(points_in_collision):
             return True
@@ -158,6 +157,7 @@ class Polygon:
         return perimeter
 
 
+############################################################################################
 class Rectangle(Polygon):
 
     def __init__(self, center=np.zeros(2), width=100, height=20):
@@ -173,22 +173,29 @@ class Rectangle(Polygon):
 
         Polygon.__init__(self, vertices=np.array([v1, v2, v3, v4]))
 
-    def to_display_format(self, screen_height):
-        py_origin = coordinates_to_pygame(self.origin, screen_height)
-        return (py_origin[0], py_origin[1], self.width, self.height)
+    # def to_display_format(self, screen_height):
+    #     py_origin = coordinates_to_pygame(self.origin, screen_height)
+    #     return (py_origin[0], py_origin[1], self.width, self.height)
 
     def plot_obstacle(self):
         return super().plot_obstacle()
 
-
-class Circle:
+############################################################################################
+class Circle(Polygon):
     
-    def __init__(self, c_x, c_y, radius):
+    def __init__(self, c_x, c_y, radius, num_vertices=36):
         self.center = np.array([c_x, c_y])
         self.radius = radius
 
-    def is_in_collision_with_points(self, points):
+        # Create an array of points that define the circle - use 10 degree increments
+        self.vertices = []
+        for i in range(0, 360, int(360 / num_vertices)):
+            self.vertices.append([c_x + radius * np.cos(i * np.pi / 180), c_y + radius * np.sin(i * np.pi / 180)])
 
+        Polygon.__init__(self, vertices=np.array(self.vertices))
+
+
+    def is_in_collision_with_points(self, points):
         dist = []
         for point in points:
             dx = self.center[0] - point[0]

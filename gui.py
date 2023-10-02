@@ -4,20 +4,30 @@ import numpy as np
 import time
 import pygame
 from w8HelperFunc import *
+
+
 class GUI:
-    def __init__(self, width, height):
+
+    def __init__(self, width, height, map):
         self.width = width
         self.height = height
+        # Create surface
         self.screen = pygame.display.set_mode((width, height))
         self.screen.fill((0, 0, 0))
+
+        self.bg = pygame.image.load("pics/gui_mask_bg.jpg") # starry galxy background
         pygame.display.set_caption("GUI")
-        pygame.display.flip()
+        # pygame.display.flip()
+
         self.clock = pygame.time.Clock()
-        self.bg = pygame.image.load("pics/gui_mask.png")
+        
+        # Robot params
         self.pibot_pic = pygame.transform.rotate(pygame.image.load("pics/8bit/pibot_top.png"),180)
         self.state = [100, 100, 0]
         self.waypoints = []
-        _, _, self.landmarks = read_true_map("M4_prac_map_full.txt")
+        # _, _, self.landmarks = read_true_map(map)
+        self.landmarks = [[0.0, 0.0], [.5, .5], [1, 1]]
+        
         pygame.font.init()
         self.m2pixel = width / 3    # pixels / meter
 
@@ -69,6 +79,7 @@ class GUI:
         rot_rect.center = rot_image.get_rect().center
         rot_image = rot_image.subsurface(rot_rect).copy()
         return rot_image
+    
     def draw(self):
         bg_rgb = np.array([120, 120, 120]).reshape(1, 1, 3)
         canvas = np.ones((self.width,self.height, 3))*bg_rgb.astype(np.uint8)
@@ -109,6 +120,7 @@ class GUI:
         surface.convert_alpha()
         surface.fill((0,0,0,0))
         for i in range(len(self.landmarks)):
+
             x,y = self.landmarks[i]
             x = (x) * self.m2pixel + self.width/2
             y = (y) * self.m2pixel  + self.height/2
@@ -146,6 +158,7 @@ class GUI:
             # Flip surface
         surface = pygame.transform.flip(surface, False, True)
         return surface
+
 
 if __name__=="__main__":
     _, _, landmarks = read_true_map("M4_prac_map_full.txt")

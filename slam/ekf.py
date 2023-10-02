@@ -3,6 +3,8 @@ from mapping_utils import MappingUtils
 import cv2
 import math
 import pygame
+import json
+import pandas as pd
 
 class EKF:
     # Implementation of an EKF for SLAM
@@ -14,13 +16,16 @@ class EKF:
     ##########################################
 
     def __init__(self, robot):
+        self.lock_map = True
         # State components
         self.robot = robot
         self.markers = np.zeros((2,0))
         self.taglist = []
 
         # Covariance matrix
-        self.P = np.zeros((3,3))
+        #self.P = np.zeros((3,3))
+        self.P = np.eye(3)*1e3
+
         self.init_lm_cov = 1e3
 
         self.robot_init_state = None
@@ -31,13 +36,26 @@ class EKF:
         f_ = f'./pics/8bit/lm_unknown.png'
         self.lm_pics.append(pygame.image.load(f_))
         self.pibot_pic = pygame.image.load(f'./pics/8bit/pibot_top.png')
+
+        ######################
+        ######################
+        ## setup logs to be used for monitoring and in algoritms
+        # 1. keep track and calculate the Innovation
+        # v = z - z_hat
+        self.v = []
+        ## keep track of NIS, Normalized Innovation Squared
+        self.nis = []
+
+        ### chi-squared Distribution
+        ## would require scipy
         
     def reset(self):
         self.robot.state = np.zeros((3, 1))
         self.markers = np.zeros((2,0))
         self.taglist = []
         # Covariance matrix
-        self.P = np.zeros((3,3))
+        #self.P = np.zeros((3,3))
+        self.P = np.eye(3)*1e3
         self.init_lm_cov = 1e3
         self.robot_init_state = None
 
@@ -91,9 +109,6 @@ class EKF:
         F = self.state_transition(raw_drive_meas)
         x = self.get_state_vector()
 
-        # TODO: add your codes here to complete the prediction step
-        # From github: 
-        # you should actually be computing P, the predicted state ...
         Q = self.predict_covariance(raw_drive_meas)
 
         self.robot.drive(raw_drive_meas)
@@ -126,21 +141,44 @@ class EKF:
 
         x = self.get_state_vector()
 
-        # TODO: add your codes here to compute the updated x
-        # From github
-        # Take a note of the loca=tion of x that should be updated in the motion model.
         S = H @ self.P @ H.T + R
         K = self.P @ H.T @ np.linalg.inv(S)
 
+        ############
+        ## freeze the position of the landmarks!
+        ## this will need to be met with real life tuning
+        ## of the covariance values given to the markers
+
+        ## create mask to be used across x and K
+        mask = np.zeros_like(x, dtype=bool)
+        mask[:3] = True # this represents the three elements of the 
+                        # robots pose, which we do want to update
+
         # correct state
-        x = x + K @ (z - z_hat)
-        
-        # P = (np.eye(self.P.shape[0]) - K @ H) @ self.P
+        if self.lock_map:
+            x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
+        else:
+            x = x + K @ (z - z_hat)
+
+        ## logging/monitoring
+        # innovation
+        innovation = z - z_hat
+        self.v.append(innovation)
+
+        ############
         P = (np.eye(x.shape[0]) - K @ H) @ self.P
         # update
         self.set_state_vector(x)
-        self.P = P
+        self.P = P + 0.01*np.eye(3)
 
+        ######################
+        ### monitoring functions
+        ### Normalized Innovation Squared
+        S_inv = np.linalg.inv(S)
+        NIS = np.dot(np.dot(innovation.T, S_inv), innovation)
+
+        self.nis.append(NIS)
+    
 
     def state_transition(self, raw_drive_meas):
         n = self.number_landmarks()*2 + 3
@@ -184,13 +222,6 @@ class EKF:
             # self.P[-1,-1] = self.init_lm_cov**2
             self.P[-2,-2] = 0 
             self.P[-1,-1] = 0
-
-        # Validate
-        # print("_____________________")
-        # print(self.markers)
-        # print("################")
-        # print(self.taglist)
-        # print("_____________________\n\n")
 
     ##########################################
     ##########################################
