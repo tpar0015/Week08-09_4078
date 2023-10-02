@@ -121,7 +121,7 @@ def get_path(target_fruit_list, target_fruit_pos, obstacles, initial_robot_pos =
 
 
 # Set up obstacles
-def get_obstacles(aruco_true_pos, fruits_true_pos, target_fruits_pos, shape = "rectangle"):
+def get_obstacles(aruco_true_pos, fruits_true_pos, target_fruits_pos, shape = "rectangle", size = 0.4):
     # Combine aruco landmark and remained fruit as obstacles
     obs_pos = np.array(aruco_true_pos)
 
@@ -145,9 +145,10 @@ def get_obstacles(aruco_true_pos, fruits_true_pos, target_fruits_pos, shape = "r
         # print(obstacles)
         # 
         if (shape.lower() == "rectangle"):
-            obstacles.append(Rectangle(center=obs, width=0.25, height=0.25))
+            obstacles.append(Rectangle(center=obs, width=size, height=size))
+
         elif (shape.lower() == "circle"):
-            obstacles.append(Circle(c_x=obs[0], c_y=obs[1], radius=0.13))
+            obstacles.append(Circle(c_x=obs[0], c_y=obs[1], radius=size/2))
 
     # print("Obstacles len: ", len(obstacles))
     return obstacles, obs_pos
@@ -171,7 +172,7 @@ def plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obsta
     # ###################################################################################
     # Plot all the obstacles
     for obs in obs_pos:
-        plt.plot(obs[0], obs[1], 'bx')
+        plt.plot(obs[0], obs[1], 'bx')  
     for obstacle_outline in obstacles:
         plt.plot(obstacle_outline.vertices[:,0], obstacle_outline.vertices[:,1], 'b-', linewidth=0.5)
     # Plot all the target fruit
@@ -277,110 +278,185 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
 # note that this function requires your camera and wheel calibration parameters from M2, and the "util" folder from M1
 # fully automatic navigation:
 # try developing a path-finding algorithm that produces the waypoints automatically
-def drive_to_point(waypoint, robot_pose):
-    # imports camera / wheel calibration parameters 
-    fileS = "calibration/param/scale.txt"
-    scale = np.loadtxt(fileS, delimiter=',')
-    fileB = "calibration/param/baseline.txt"
-    baseline = np.loadtxt(fileB, delimiter=',')
+# def drive_to_point(waypoint, robot_pose):
+#     # imports camera / wheel calibration parameters 
+#     fileS = "calibration/param/scale.txt"
+#     scale = np.loadtxt(fileS, delimiter=',')
+#     fileB = "calibration/param/baseline.txt"
+#     baseline = np.loadtxt(fileB, delimiter=',')
     
-    ####################################################
-    # TODO: replace with your codes to make the robot drive to the waypoint
-    # One simple strategy is to first turn on the spot facing the waypoint,
-    # then drive straight to the way point
+#     ####################################################
+#     # TODO: replace with your codes to make the robot drive to the waypoint
+#     # One simple strategy is to first turn on the spot facing the waypoint,
+#     # then drive straight to the way point
 
-    # Turn toward waypoint
-    robot_angle = np.arctan((waypoint[1]-robot_pose[1])/(waypoint[0]-robot_pose[0])) # rad
-    robot_angle = robot_pose[2] - robot_angle
+#     # Turn toward waypoint
+#     robot_angle = np.arctan((waypoint[1]-robot_pose[1])/(waypoint[0]-robot_pose[0])) # rad
+#     robot_angle = robot_pose[2] - robot_angle
 
-    wheel_vel = 30 # tick
+#     wheel_vel = 30 # tick
     
-    # turn towards the waypoint
-    ''' Get baseline'''
+#     # turn towards the waypoint
+#     ''' Get baseline'''
     
-    dataDir = "{}calibration/param/".format(os.getcwd())
-    fileNameB = "{}baseline.txt".format(dataDir)
-    # read baseline from numpy formation to float
-    baseline = np.loadtxt(fileNameB, delimiter=',')
+#     dataDir = "{}calibration/param/".format(os.getcwd())
+#     fileNameB = "{}baseline.txt".format(dataDir)
+#     # read baseline from numpy formation to float
+#     baseline = np.loadtxt(fileNameB, delimiter=',')
 
 
-    turn_time = (baseline * robot_angle) / wheel_vel
-    print("Turning for {:.2f} seconds".format(turn_time))
+#     turn_time = (baseline * robot_angle) / wheel_vel
+#     print("Turning for {:.2f} seconds".format(turn_time))
 
-    ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
+#     ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
     
-    # after turning, drive straight to the waypoint
-    drive_time = 0.0 # replace with your calculation
-    print("Driving for {:.2f} seconds".format(drive_time))
-    ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
-    ####################################################
+#     # after turning, drive straight to the waypoint
+#     drive_time = 0.0 # replace with your calculation
+#     print("Driving for {:.2f} seconds".format(drive_time))
+#     ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
+#     ####################################################
 
-    print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
-
-############################################################################
-############################################################################
-############        FOR SLAM        #################################### 
-############################################################################
-############################################################################
-
-'''
-    TODO
-    - Get a list of Landmarks- used as input for SLAM below
-    - Get measure drive from util/measure.py
-    - 
-    - 
-    - check SLAM flag before update???
-'''
-# get a list of LMS first --> input that into update slam below
+#     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
 
-def update_slam(self, drive_meas):
-    aruco_det = aruco.aruco_detector(self.ekf.robot, marker_length=0.07)
+# def get_robot_pose():
+#     ####################################################
+#     # TODO: replace with your codes to estimate the pose of the robot
+#     # We STRONGLY RECOMMEND you to use your SLAM code from M2 here <----------------
 
-    # TODO
-    lms, aruco_img = aruco_det.detect_marker_positions(self.img)
+
+
+#     # update the robot pose [x,y,theta]
+#     robot_pose = [0.0,0.0,0.0] # replace with your calculation
+#     ####################################################
+#     # image_poses = {}
+#     # with open(f'{script_dir}/lab_output/images.txt') as fp:
+#     #     for line in fp.readlines():
+#     #         pose_dict = ast.literal_eval(line)
+#     #         image_poses[pose_dict['imgfname']] = pose_dict['pose']
+
+#     # robot_pose = image_poses[image_poses.keys()[-1]]
+#     ####################################################
+
+
+#     return robot_pose
+
+''' Thomas code - GUI and driving in pooling loop'''
+
+    # def set_robot_pose(self, state):
+    #     self.ekf.robot.state[0:3, 0] = state
+
+    # # Waypoint navigation
+    # # the robot automatically drives to a given [x,y] coordinate
+    # # note that this function requires your camera and wheel calibration parameters from M2, and the "util" folder from M1
+    # # fully automatic navigation:
+    # # try developing a path-finding algorithm that produces the waypoints automatically
+    # def get_turn_params(self, waypoint):
+    #     scale = self.ekf.robot.wheels_scale
+    #     baseline = self.ekf.robot.wheels_width
+    #     # Get pose
+    #     robot_pose = self.get_robot_pose()
     
-    # CHECKING - pause to print LMS
-    if self.request_recover_robot:
-        print(lms)
-        is_success = self.ekf.recover_from_pause(lms)
-        if is_success:
-            self.notification = 'Robot pose is successfuly recovered'
-            self.ekf_on = True
-        else:
-            self.notification = 'Recover failed, need >2 landmarks!'
-            self.ekf_on = False
-        self.request_recover_robot = False
-    elif self.ekf_on:  # and not self.debug_flag:
-        # Once activate SLAM, state is predicted by measure DRIVE
-        # Then being updated with EKF by measure LMS
-        self.ekf.predict(drive_meas)
-        self.ekf.add_landmarks(lms)
-        self.ekf.update(lms)
+    #     angle_to_waypoint = np.arctan2((waypoint[1]-robot_pose[1]), (waypoint[0]-robot_pose[0]))
+    #     robot_angle = -robot_pose[2] + angle_to_waypoint
+
+    #     print(f"-- DEBUG -- Angle to turn: {np.rad2deg(robot_angle)}")
+
+    #     turn_time = baseline/2 * robot_angle / (scale * self.turn_vel)
+
+    #     # if turn_time != 0:
+    #     # Account for negative angle
+    #     if turn_time < 0:
+    #         turn_time *=-1
+    #         turn_vel = self.turn_vel * -1
+    #     else:
+    #         turn_vel = self.turn_vel
+
+    #     return turn_vel, turn_time
 
 
+    # def get_dist_params(self, waypoint):
+    #     scale = self.ekf.robot.wheels_scale
+    #     baseline = self.ekf.robot.wheels_width
 
-def get_robot_pose():
-    ####################################################
-    # TODO: replace with your codes to estimate the pose of the robot
-    # We STRONGLY RECOMMEND you to use your SLAM code from M2 here <----------------
+    #     # Get pose
+    #     robot_pose = self.get_robot_pose()
 
+    #     # after turning, drive straight to the waypoint
+    #     robot_dist = ((waypoint[1]-robot_pose[1])**2 + (waypoint[0]-robot_pose[0])**2)**(1/2)
 
+    #     print(f"-- DEBUG -- Dist to drive: {robot_dist * 100} cm")
 
-    # update the robot pose [x,y,theta]
-    robot_pose = [0.0,0.0,0.0] # replace with your calculation
-    ####################################################
-    # image_poses = {}
-    # with open(f'{script_dir}/lab_output/images.txt') as fp:
-    #     for line in fp.readlines():
-    #         pose_dict = ast.literal_eval(line)
-    #         image_poses[pose_dict['imgfname']] = pose_dict['pose']
+    #     drive_time = robot_dist / (scale * self.wheel_vel)
 
-    # robot_pose = image_poses[image_poses.keys()[-1]]
-    ####################################################
+    #     return drive_time
 
 
-    return robot_pose
+    # def drive_control(self, turn_vel, wheel_vel, vel_time, dt, turn=False):
+    #     time_series = np.arange(0, vel_time, dt)
+    #     #time_gui_update = []
+    #     average_gui_update_time = 0.055
+    #     time_series = np.arange(0, vel_time + average_gui_update_time*len(time_series), dt)
+
+    #     # Polling loop
+    #     for t in time_series:
+    #         ''' UPdate pose manually first'''
+    #         cur_pose = self.get_robot_pose()
+    #         if turn == True:
+    #             cur_pose[-1] += dt*turn_vel
+    #         else:
+    #             cur_pose[0] += dt*wheel_vel*np.cos(cur_pose[-1])
+    #             cur_pose[1] += dt*wheel_vel*np.sin(cur_pose[-1])
+
+    #         self.set_robot_pose(cur_pose)
+    #         # print(end_point)
+    #         self.pibot.set_velocity([0 + 1*(not turn), 1*turn], time=dt)
+            
+                
+    #         # EKF
+    #         # GUI
+    #         # Time it
+    #         #time_prev = time.time()
+    #         # self.gui_update()
+    #         #time_after = time.time()
+    #         #time_gui_update.append(time_after - time_prev)
+
+    #     #print(f"Average time for GUI update: {np.mean(time_gui_update)}")
+
+    # def gui_update(self):
+    #     for event in pygame.event.get():
+    #         if event.type == pygame.MOUSEBUTTONDOWN:
+    #             self.gui.add_waypoint()
+    #             pygame.event.clear()
+    #         elif event.type == pygame.QUIT:
+    #             pygame.quit()
+    #             sys.exit()
+    #     self.gui.update_state(self.get_robot_pose())
+    #     self.gui.draw()
+
+
+    # ''' Added two arguments'''
+    # def drive_to_point_pooling(self, waypoint, wheel_vel = 20):
+
+    #     #######################################################################################
+    #     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #     # # Turn toward waypoint
+    #     turn_vel, turn_time = self.get_turn_params(waypoint)
+    #     self.pibot.turning_tick = turn_vel
+    #     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #     # after turning, drive straight to the waypoint
+    #     drive_time = self.get_dist_params(waypoint)
+    #     self.pibot.tick = self.wheel_vel
+    #     # this similar to self.command['motion'] in prev M
+    #     dt = 0.1
+
+    #     # To turn
+    #     self.drive_control(turn_vel, self.wheel_vel, turn_time, dt, turn=True)
+    #     print(f"!@#$ inside drive_to_point, cur_pose: {self.get_robot_pose()}")
+    #     # To drive
+    #     self.drive_control(turn_vel, self.wheel_vel, drive_time, dt, turn=False)
+    #     #######################################################################################
+
 
 # main loop
 if __name__ == "__main__":
