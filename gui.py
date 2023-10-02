@@ -160,6 +160,7 @@ class GUI:
         return surface
 
 
+
 if __name__=="__main__":
     _, _, landmarks = read_true_map("M4_prac_map_full.txt")
     gui = GUI(750, 750)

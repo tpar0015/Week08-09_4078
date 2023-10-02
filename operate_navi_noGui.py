@@ -257,17 +257,6 @@ class Operate:
         self.gui.draw()
 
 
-<<<<<<< HEAD:operate_navi.py
-    def drive_to_point(self, waypoint):
-        # Get dir
-        # path = os.getcwd() + "/"
-        # fileS = "{}calibration/param/scale.txt".format(path)
-        # scale = np.loadtxt(fileS, delimiter=',')
-        # fileB = "{}calibration/param/baseline.txt".format(path)
-        # baseline = np.loadtxt(fileB, delimiter=',')
-        pass
-=======
->>>>>>> e32486a06a6a86a2f76d9e4f1b7583b8f3d423b6:operate_navi_noGui.py
     ''' Added two arguments'''
     def drive_to_point(self, waypoint, wheel_vel = 20):
         
