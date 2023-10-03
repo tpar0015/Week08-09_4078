@@ -34,6 +34,7 @@ import shutil
 from operate_navi_noGui import Operate
 import argparse
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--ip", metavar='', type=str, 
                     default='192.168.50.1')
@@ -46,14 +47,16 @@ parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
 # parser.add_argument("--map", type=str, default='Home_test_map.txt')
 parser.add_argument("--map", type=str, default='map/M4_prac_map_full.txt')
+
+parser.add_argument("--plot", type=int, default=1)
 args, _ = parser.parse_known_args()
 
 # read in the true map
 fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
 
 path_navi = True
-start = True
-slam = True
+start = 1
+slam = 1
 
 
 try:
@@ -74,14 +77,16 @@ try:
 
         # #######################################################################################
         print("\n\t- Generating pathway for NAVIGATION - \n")
-        waypoint, step_list = w8.get_path(target_fruit_list, target_fruits_pos, obstacles, robot_step_size=0.05, goal_tolerance=0.1 )
+        waypoint, step_list = w8.get_path(target_fruit_list, target_fruits_pos, obstacles, 
+                                          robot_step_size= 0.05, 
+                                          goal_tolerance= 0.3)
 
         print(f"--> Total steps: {sum(step_list)}")
-
-        print(waypoint)
+        # print(waypoint)
 
         # #######################################################################################
-        # w8.plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obstacles)
+        if args.plot:
+            w8.plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obstacles)
 
 except KeyboardInterrupt:
     exit()
@@ -115,39 +120,52 @@ try:
 
             # operate.rotate_360_slam()
 
-            # Ignore first waypoint
+            # Slam related init
             counter_slam = 0
+            operate.prompt_start_slam(aruco_true_pos)
+
+            # Ignore first waypoint
             for waypoint in path[1:]:
                 
-                ###########################################################
-                # 1. Robot drives to the waypoint
                 start_pose = operate.get_robot_pose()
-                print(f"\nNext waypoint {waypoint}")
-                operate.drive_to_point(waypoint)
 
+                if operate.ekf_on:
+                    operate.get_SLAM_pose_WITH_drive(start_pose, waypoint)
+                
+                else:
+                    ###########################################################
+                    # 1. Robot drives to the waypoint
+                    ###########################################################
+                    print(f"\nNext waypoint {waypoint}")
+                    operate.drive_to_point(waypoint)
+
+
+                    ###########################################################
+                    # 2. Manual compute robot pose (based on start pose & end points)
+                    ###########################################################
+                    operate.manual_set_robot_pose(start_pose, waypoint, debug=False)
+
+                    # Debugging
+                    pose = operate.get_robot_pose()
+                    print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")                    
+                
                 ###########################################################
-                # 2. Manual compute robot pose (based on start pose & end points)
-                operate.manual_set_robot_pose(start_pose, waypoint, debug=False)
-                # Debugging
-                pose = operate.get_robot_pose()
-                theta = np.rad2deg(pose[2])
-                print(f"--->Arrived at {waypoint} - Robot pose: {theta}")                    
-                counter_slam += 1
+                # 3. Rotate 360 and SLAM
+                ###########################################################
+                # counter_slam += 1
+                # if counter_slam == 12:
+                #     operate.rotate_360_slam()
 
-                if counter_slam == 12:
-                    operate.rotate_360_slam()
+            print(f"Reach {fruit}, wait for 2s")
+            cur_time = time.time()
+            while time.time() - cur_time < 2:
+                print_time = time.time()
+                # Print every 0.2s
+                if time.time() - print_time > 0.2:
+                    print(".", end="")
+                    print_time = time.time()
 
-
-            print("--- Stage 2 --- DEBUG --- Reach target fruit")
-            input("Enter to continute\n")
-
-            # ###########################################################
-            # # 3. When reach each fruit, stop, rotate 360 && localise
-
-            # if slam:
-            #     input("Enter to continue\n")
-            
-
+            # input("Enter to continute\n")
 
 except KeyboardInterrupt:
     if start:

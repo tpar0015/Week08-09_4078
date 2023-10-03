@@ -41,7 +41,11 @@ Input:
     - ccw:                  direction for "bug" to wrap around Obstacles
     - goal_tolerance:       distance to goal to consider as reached !
 '''
-def get_path(target_fruit_list, target_fruit_pos, obstacles, initial_robot_pos = [0,0], robot_step_size=0.05, ccw=False, goal_tolerance=0.1):
+def get_path(target_fruit_list, target_fruit_pos, obstacles, initial_robot_pos = [0,0], 
+             ccw=False,
+             robot_step_size=0.05, 
+             goal_tolerance=0.5,
+             wrap = True):
 
     ###########################################################################################
     '''Create a dictionary of waypoints, each key is the fruit in search_list'''
@@ -78,43 +82,44 @@ def get_path(target_fruit_list, target_fruit_pos, obstacles, initial_robot_pos =
     ###########################################################################################
     ''' Interconnect between each path '''
     ###########################################################################################
-    for fruit_idx, fruit in enumerate(target_fruit_list):
-        if fruit_idx == len(target_fruit_list)-1:
-            break
-        ###############################################
-        # Get interconnect goal pos
-        interconnect_goal_pos = target_fruit_pos[fruit_idx]
-        # Create circle
-        num_vertices = 36
-        interconnect_goal = Circle(c_x=interconnect_goal_pos[0], c_y=interconnect_goal_pos[1], radius=0.1, num_vertices=num_vertices)
-        ###############################################
-        # Get path of current fruit
-        path = waypoint[fruit]
-        
-        # Get next path in waypoint
-        next_path = waypoint[target_fruit_list[fruit_idx+1]]
-        # Clip those start point (that suppose to be inside the circle)
-        while True:
-            if len(next_path) == 1: 
+    if wrap:
+        for fruit_idx, fruit in enumerate(target_fruit_list):
+            if fruit_idx == len(target_fruit_list)-1:
                 break
-            if navi.compute_distance_between_points(next_path[0], interconnect_goal_pos) > goal_tolerance: 
-                break
-            else: 
-                next_path = np.delete(next_path, 0, axis = 0)
-        ###############################################
-        # Find closest point on circle to path_end_point
-        wrap_start_idx, wrap_start_point = find_nearest(interconnect_goal.vertices, path[-1])
-        # Find closest point on circle to next_path_start_point
-        wrap_end_idx, wrap_end_point = find_nearest(interconnect_goal.vertices, next_path[0])
-        # print(wrap_start_idx, wrap_end_idx)
-        
-        # Create wrap around goal path
-        wrap_path = shortest_arc_points(interconnect_goal_pos, goal_tolerance, wrap_start_point, wrap_end_point, num_points=num_vertices)
-        # wrap_path = interconnect_goal.vertices[wrap_end_idx : wrap_start_idx]
-        ###############################################
-        # Update
-        waypoint[target_fruit_list[fruit_idx+1]] = next_path
-        waypoint[fruit] = np.append(path, wrap_path, axis = 0)
+            ###############################################
+            # Get interconnect goal pos
+            interconnect_goal_pos = target_fruit_pos[fruit_idx]
+            # Create circle
+            num_vertices = 36
+            interconnect_goal = Circle(c_x=interconnect_goal_pos[0], c_y=interconnect_goal_pos[1], radius=goal_tolerance, num_vertices=num_vertices)
+            ###############################################
+            # Get path of current fruit
+            path = waypoint[fruit]
+            
+            # Get next path in waypoint
+            next_path = waypoint[target_fruit_list[fruit_idx+1]]
+            # Clip those start point (that suppose to be inside the circle)
+            while True:
+                if len(next_path) == 1: 
+                    break
+                if navi.compute_distance_between_points(next_path[0], interconnect_goal_pos) > goal_tolerance: 
+                    break
+                else: 
+                    next_path = np.delete(next_path, 0, axis = 0)
+            ###############################################
+            # Find closest point on circle to path_end_point
+            wrap_start_idx, wrap_start_point = find_nearest(interconnect_goal.vertices, path[-1])
+            # Find closest point on circle to next_path_start_point
+            wrap_end_idx, wrap_end_point = find_nearest(interconnect_goal.vertices, next_path[0])
+            # print(wrap_start_idx, wrap_end_idx)
+            
+            # Create wrap around goal path
+            wrap_path = shortest_arc_points(interconnect_goal_pos, goal_tolerance, wrap_start_point, wrap_end_point, num_points=num_vertices)
+            # wrap_path = interconnect_goal.vertices[wrap_end_idx : wrap_start_idx]
+            ###############################################
+            # Update
+            waypoint[target_fruit_list[fruit_idx+1]] = next_path
+            waypoint[fruit] = np.append(path, wrap_path, axis = 0)
         
 
     return waypoint, step_list
@@ -181,7 +186,7 @@ def plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obsta
 
     plt.title("Waypoint path")
     plt.axis('equal')
-    plt.show()
+    plt.show(block=False)
 
 ########################################################################3
 def getImage(path, zoom=1):

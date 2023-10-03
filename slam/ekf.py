@@ -79,6 +79,7 @@ class EKF:
         self.robot.state = state[0:3,:]
         self.markers = np.reshape(state[3:,:], (2,-1), order='F')
     
+
     def save_map(self, fname="slam_map.txt"):
         if self.number_landmarks() > 0:
             utils = MappingUtils(self.markers, self.P[3:,3:], self.taglist)
@@ -129,8 +130,7 @@ class EKF:
         self.P = F @ self.P @ F.T + Q
         
         # print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2]) % 360}")
-        
-        print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {self.robot.state[2]}")
+        # print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {self.robot.state[2]}")
 
 
 
@@ -181,7 +181,7 @@ class EKF:
         if self.lock_map:
             x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
         else:
-            # The original code where x is updated based on measurement
+            ''' The original code where x is updated based on measurement'''
             x = x + K @ (z - z_hat)
 
         ## logging/monitoring
@@ -192,7 +192,6 @@ class EKF:
         ############
         P = (np.eye(x.shape[0]) - K @ H) @ self.P
         # update
-        self.set_state_vector(x)
         self.P = P + 0.01*np.eye(self.state_num)
 
         ######################
@@ -202,6 +201,13 @@ class EKF:
         NIS = np.dot(np.dot(innovation.T, S_inv), innovation)
 
         self.nis.append(NIS)
+
+        ''' BL: return state instead of update straight into robot.state'''
+        # self.set_state_vector(x)
+            # self.robot.state = state[0:3,:]
+            # self.markers = np.reshape(state[3:,:], (2,-1), order='F')
+        
+        return x[0:3,:]
     
 
     def state_transition(self, raw_drive_meas):
@@ -247,21 +253,11 @@ class EKF:
     #         self.taglist.append(int(lm.tag))
     #         self.markers = np.concatenate((self.markers, lm_inertial), axis=1)
 
-<<<<<<< HEAD
     #         # Create a simple, large covariance to be fixed by the update step
     #         self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
     #         self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
     #         self.P[-2,-2] = self.init_lm_cov**2
     #         self.P[-1,-1] = self.init_lm_cov**2
-=======
-            # Create a simple, large covariance to be fixed by the update step
-            self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
-            self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
-            # self.P[-2,-2] = self.init_lm_cov**2
-            # self.P[-1,-1] = self.init_lm_cov**2
-            self.P[-2,-2] = 0 
-            self.P[-1,-1] = 0
->>>>>>> 1ce38cdeb026a7871e7d43ca07a839deeeae6170
 
     ##########################################
     ##########################################
