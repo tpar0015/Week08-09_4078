@@ -139,7 +139,6 @@ try:
                     print(f"\nNext waypoint {waypoint}")
                     operate.drive_to_point(waypoint)
 
-
                     ###########################################################
                     # 2. Manual compute robot pose (based on start pose & end points)
                     ###########################################################
@@ -147,7 +146,11 @@ try:
 
                     # Debugging
                     pose = operate.get_robot_pose()
-                    print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")                    
+                    print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
+
+                pose = operate.get_robot_pose()
+                print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
+                # input("Enter to continue: ...")                   
                 
                 ###########################################################
                 # 3. Rotate 360 and SLAM
@@ -157,6 +160,7 @@ try:
                 #     operate.rotate_360_slam()
 
             print(f"Reach {fruit}, wait for 2s")
+
             cur_time = time.time()
             while time.time() - cur_time < 2:
                 print_time = time.time()

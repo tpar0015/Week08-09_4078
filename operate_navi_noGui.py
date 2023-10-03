@@ -212,26 +212,30 @@ class Operate:
         # ___|___|___|___|___|___|___|___|___|___|___|___|___|___|___|___
         ''' Same things in drive_to_point'''
         # ___|___|___|___|___|___|___|___|___|___|___|___|___|___|___|___
-        turn_vel, turn_time = self.get_turn_time(waypoint)
+        turn_vel, turn_time, small_angle_flag = self.get_turn_time(waypoint)
 
-        # this similar to self.command['motion'] in prev M
-        self.pibot.turning_tick = turn_vel
 
-        start_time = time.time()
-        cur_time = start_time
-        while cur_time - start_time < turn_time:
-            lv, rv = self.pibot.set_velocity([0, 1])    # turn on the spot
-            # self.command['motion'] = [0, 1]
-            # physical robot - reverse wheel
-            self.take_pic()
-            drive_meas = measure.Drive(lv, -rv, time.time() - cur_time)
+        ''' Threshold for avoiding SLAM get stuck'''
+        if not small_angle_flag:
+            # this similar to self.command['motion'] in prev M
+            self.pibot.turning_tick = turn_vel
 
-            # Get slam pose
-            new_tag_detected, slam_pose = self.update_slam(drive_meas)
+            start_time = time.time()
+            cur_time = start_time
+            while cur_time - start_time < turn_time:
+                lv, rv = self.pibot.set_velocity([0, 1])    # turn on the spot
+                # self.command['motion'] = [0, 1]
+                # physical robot - reverse wheel
+                self.take_pic()
+                drive_meas = measure.Drive(lv, -rv, time.time() - cur_time)
 
-            self.slam_set_robot_pose(start_pose, waypoint, slam_pose, new_tag_detected, debug=True)
+                # Get slam pose
+                new_tag_detected, slam_pose = self.update_slam(drive_meas)
 
-            cur_time = time.time()
+                self.slam_set_robot_pose(start_pose, waypoint, slam_pose, new_tag_detected, 
+                                         turn = True, debug=True)
+
+                cur_time = time.time()
 
 
         #######
@@ -253,7 +257,8 @@ class Operate:
 
             # Get slam pose
             new_tag_detected, slam_pose = self.update_slam(drive_meas)
-            self.slam_set_robot_pose(start_pose, waypoint, slam_pose, new_tag_detected, debug = True)
+            self.slam_set_robot_pose(start_pose, waypoint, slam_pose, new_tag_detected, 
+                                     turn = False, debug = True)
 
             cur_time = time.time()
 
@@ -261,13 +266,13 @@ class Operate:
         self.stop() # to set self.command = [0,0]
 
 
-    def slam_set_robot_pose(self, start_pose, end_point, slam_pose, slam_flag, slam_weight = 0.2, debug = False):
+    def slam_set_robot_pose(self, start_pose, end_point, slam_pose, slam_flag, turn, slam_weight = 0.2, debug = False):
 
         # Get manual pose
         manual_pose = self.get_manual_pose(start_pose, end_point, debug=False)
         x = manual_pose[0]; y = manual_pose[1]; theta = manual_pose[2]
 
-        
+        slam_flag = False
         '''Only update using SLAM if its detect new aruco !!'''
         if slam_flag and type(slam_pose) != 'NoneType':
             # Just take in slam pose at 0.5 confidence
@@ -286,9 +291,11 @@ class Operate:
                 # print(f" --- Percentage difference: [{float(x_dif):.2f}, {float(y_dif):.2f}, {float(theta_dif):.2f}] ---")
 
         # Update robot pose
-        self.ekf.robot.state[0] = x
-        self.ekf.robot.state[1] = y
         self.ekf.robot.state[2] = theta
+        if not turn:
+            self.ekf.robot.state[0] = x
+            self.ekf.robot.state[1] = y
+       
 
 
     def prompt_start_slam(self, aruco_true_pos):
@@ -304,7 +311,7 @@ class Operate:
     ####################################################################################
 
     def drive_to_point(self, waypoint):
-        turn_vel, turn_time = self.get_turn_time(waypoint)
+        turn_vel, turn_time,_ = self.get_turn_time(waypoint)
 
         # this similar to self.command['motion'] in prev M
         self.pibot.turning_tick = turn_vel
@@ -343,13 +350,13 @@ class Operate:
         print(f"current angle pose: {np.rad2deg(robot_pose[2])}")
         print(f"Angle to turn: {np.rad2deg(robot_angle)}\n")
         if abs(robot_angle) > np.pi/3:
-
             # input("Turning big angle, enter to continue")
             print("Turning BIG angle !!!!!!!!!!!!!!")
         print("--------------------------------")
+
+        # Compute
         turn_time = baseline/2 * robot_angle / (scale * self.turn_vel)
 
-        # if turn_time != 0:
         # Account for negative angle
         if turn_time < 0:
             turn_time *=-1
@@ -357,7 +364,12 @@ class Operate:
         else:
             turn_vel = self.turn_vel
 
-        return turn_vel, turn_time
+        ''' BL: added threshold to avoid SLAM get stuck <----------- '''
+        small_angle_flag = False        
+        if abs(np.rad2deg(robot_angle)) <= 5:
+            small_angle_flag = True 
+
+        return turn_vel, turn_time, small_angle_flag
 
 
     def get_drive_time(self, waypoint):
@@ -368,8 +380,12 @@ class Operate:
         robot_pose = self.get_robot_pose()
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # after turning, drive straight to the waypoint
+        # print(f"DEBUG: {waypoint, robot_pose}")
         robot_dist = ((waypoint[1]-robot_pose[1])**2 + (waypoint[0]-robot_pose[0])**2)**(1/2)
         drive_time = robot_dist / (scale * self.wheel_vel)
+
+        print(f"Distance to drive: {robot_dist}")
+        print("--------------------------------")
 
         return drive_time
 
