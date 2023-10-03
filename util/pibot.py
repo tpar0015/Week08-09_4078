@@ -12,6 +12,7 @@ class PenguinPi:
         self.ip = ip
         self.port = port
         self.wheel_vel = [0, 0]
+        
         ''' Bill modified this - 15 Sep'''
         self.tick = 50
         self.turning_tick = 20
