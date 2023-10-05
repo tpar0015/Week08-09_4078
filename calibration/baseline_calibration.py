@@ -20,6 +20,8 @@ def calibrateBaseline():
     ##########################################
     wheel_velocities_range = range(30, 60, 10)
     delta_times = []
+    angle_caliration = np.pi
+    angle_caliration_deg = np.rad2deg(angle_caliration)
 
     for wheel_vel in wheel_velocities_range:
         print("Driving at {} ticks/s.".format(wheel_vel))
@@ -37,11 +39,11 @@ def calibrateBaseline():
             ppi.tick=20
             ppi.set_velocity([0, 1], time = delta_time)
 
-            uInput = input("Did the robot spin 360deg?[y/N]")
+            uInput = input(f"Did the robot spin {angle_caliration_deg} deg?[y/N]")
             if uInput == 'y':
                 delta_times.append(delta_time)
-                print("Recording that the robot spun 360deg in {:.2f} seconds at wheel speed {}.\n".format(delta_time,
-                                                                                                           wheel_vel))
+                print(f"Recording that the robot spun {angle_caliration_deg} deg" / 
+                      "in {delta_time:.2f} seconds at wheel speed {wheel_vel}.\n")
                 break
 
     # Once finished driving, compute the basline parameter by averaging
@@ -49,7 +51,8 @@ def calibrateBaseline():
     baseline = 0
     for delta_time, wheel_vel in zip(delta_times, wheel_velocities_range):
         # pass # TODO: replace with your code to compute the baseline parameter using scale, wheel_vel, and delta_time
-        baseline += ( delta_time * wheel_vel * scale ) / np.pi
+        # baseline += ( delta_time * wheel_vel * scale ) / np.pi
+        baseline += 2 * ( delta_time * wheel_vel * scale ) / (angle_caliration)
     
     baseline = baseline / num
     print("The baseline parameter is estimated as {:.6f} m.".format(baseline))

@@ -1,6 +1,7 @@
-# Version 3
+# Version 4
+# Rewrite to my understanding
 # Modified by Bill
-# 9pm - Oct 2
+# Oct 5
 
 import numpy as np
 from mapping_utils import MappingUtils
@@ -8,8 +9,25 @@ import cv2
 import math
 import pygame
 
-import json
 import pandas as pd
+
+'''
+Summarise from textbook chap 6 - localisation
+
+    1. Using a map (known locations of landmarks)
+        - calculate distance and (bearing angle) + COVAR for measurement_error
+        * find INNOVATION (error between measurement and prediction from robot_state)
+        - Linearise (if needed) the measurement function
+        * Apply EKF steps
+
+        
+        - further note:
+            * generate plot to check error (innovation) overtime?
+                --> should "not grow monotonically overtimes"
+            * sensor fusing
+            * in practice, unknown identity of landmark, Particle KF is useful use hypothesis to choose detected landmarks
+'''
+
 
 class EKF:
     # Implementation of an EKF for SLAM
@@ -21,21 +39,28 @@ class EKF:
     ##########################################
 
     def __init__(self, robot):
+
+        # Lock the aruco poses as it were given
         self.lock_map = True
+
+        ###################################
         # State components
         self.robot = robot
         self.markers = np.zeros((2,0))
         self.taglist = []
-
-        # Covariance matrix
-        #self.P = np.zeros((3,3))
-
+        
+        # If using known map
+        num_landmarks = 10
         self.state_num = 23     # set manually for now, this include robot pose and arcuo pose
-
+        
+        ###################################
+        # Covariance matrix
         self.P = np.eye(self.state_num)*1e3
-
+        #self.P = np.zeros((3,3))
         self.init_lm_cov = 1e3
 
+        ###################################
+        # GUI
         self.robot_init_state = None
         self.lm_pics = []
         for i in range(1, 11):
@@ -45,98 +70,86 @@ class EKF:
         self.lm_pics.append(pygame.image.load(f_))
         self.pibot_pic = pygame.image.load(f'./pics/8bit/pibot_top.png')
 
-        ######################
-        ######################
+        ###################################
         ## setup logs to be used for monitoring and in algoritms
-        # 1. keep track and calculate the Innovation
-        # v = z - z_hat
+
+        # log Innovation v = z - z_hat
         self.v = []
-        ## keep track of NIS, Normalized Innovation Squared
+        # keep track of NIS, Normalized Innovation Squared
         self.nis = []
 
-        ### chi-squared Distribution
+        ### chi-squared Distribution <-------------------- *Question*
         ## would require scipy
 
-    def reset(self):
-        self.robot.state = np.zeros((3, 1))
-        self.markers = np.zeros((2,0))
-        self.taglist = []
-        # Covariance matrix
-        #self.P = np.zeros((3,3))
-        self.P = np.eye(self.state_num)*1e3
-        self.init_lm_cov = 1e3
-        self.robot_init_state = None
+        # Create some sort of pose uncertainty logging
+        # self.pose_uncertainty = []
 
-    def number_landmarks(self):
-        return int(self.markers.shape[1])
-
-    def get_state_vector(self):
-        state = np.concatenate(
-            (self.robot.state, np.reshape(self.markers, (-1,1), order='F')), axis=0)
-        return state
-    
-    def set_state_vector(self, state):
-        self.robot.state = state[0:3,:]
-        self.markers = np.reshape(state[3:,:], (2,-1), order='F')
-    
-
-    def save_map(self, fname="slam_map.txt"):
-        if self.number_landmarks() > 0:
-            utils = MappingUtils(self.markers, self.P[3:,3:], self.taglist)
-            utils.save(fname)
-
-    def recover_from_pause(self, measurements):
-        if not measurements:
-            return False
-        else:
-            lm_new = np.zeros((2,0))
-            lm_prev = np.zeros((2,0))
-            tag = []
-            for lm in measurements:
-                if lm.tag in self.taglist:
-                    lm_new = np.concatenate((lm_new, lm.position), axis=1)
-                    tag.append(int(lm.tag))
-                    lm_idx = self.taglist.index(lm.tag)
-                    lm_prev = np.concatenate((lm_prev,self.markers[:,lm_idx].reshape(2, 1)), axis=1)
-            if int(lm_new.shape[1]) > 2:
-                R,t = self.umeyama(lm_new, lm_prev)
-                theta = math.atan2(R[1][0], R[0][0])
-                self.robot.state[:2]=t[:2]
-                self.robot.state[2]=theta
-                return True
-            else:
-                return False
         
     ##########################################
     # EKF functions
     # Tune your SLAM algorithm here
+    ##########################################
+    # From lecture note / slides:
+    # - F     : Jacobian of model
+    # - Q     : Covariance of model
+    # - P     : Covariance of state (including model and landmarks)
+    # 
+    # - z     : measurement --> return landmark position
+    # - R     : Covariance of measurement
+    # - H     : Jacobian of measurement (multiply -1)
+    
     # ########################################
 
-    # the prediction step of EKF
+    '''
+    Input:
+        - drive measure, which has:
+            * drive time
+            * wheel vel 
+            * wheel VARIANCE (fixed at 1 for now)
+    Output ==> self update
+        - P:
+        - robot.drive = manual_set_robot_pose
+    Description:
+        - This use the raw_drive_meas to drive, manual set pose, and update state covar
+    '''
     def predict(self, raw_drive_meas):
-
+        
+        # Jacobian of the model --> linearisation
         F = self.state_transition(raw_drive_meas)
-        x = self.get_state_vector()
 
+        # Model COVAR
         Q = self.predict_covariance(raw_drive_meas)
 
+        # Drive and update the state!
         self.robot.drive(raw_drive_meas)
-        
-        '''BL: Print out the state continously here'''
-        # check shape of F and P
-        # print(f"F shape: {F.shape}")
-        # print(f"P shape: {self.P.shape}")
 
+        # State COVAR
         self.P = F @ self.P @ F.T + Q
-        
+
+        '''BL: Print out the state continously here'''
+        ''' Well, this state is not yet updated!'''
         # print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2]) % 360}")
         # print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {self.robot.state[2]}")
 
 
 
-    # --- DEBUG --- cur_pose before SLAM: [ 0.14000184 -0.05384686 -0.36717383]
-
-    # the update step of EKF
+    '''
+    Input:
+        - measurements: return from ARUCO_DET()
+            * lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+            * list of Marker() objects, which has
+                * position and tag - input by ARUCO_DET()
+                * covar: preset at 0.1*np.eye(2)
+    Output:
+        - self update
+            * self.robot.state
+            * self.P
+    Description:
+        - Follow the lecture slides
+        
+        - Added map lock by Christopher
+        - Added logging by Christopher
+    '''
     def update(self, measurements):
         if not measurements:
             return
@@ -145,21 +158,30 @@ class EKF:
         tags = [lm.tag for lm in measurements]
         idx_list = [self.taglist.index(tag) for tag in tags]
 
-        # Stack measurements and set covariance
+        # Stack measurements (landmarks pos) 
         z = np.concatenate([lm.position.reshape(-1,1) for lm in measurements], axis=0)
+        
+        # Meas COVAR
         R = np.zeros((2*len(measurements),2*len(measurements)))
         for i in range(len(measurements)):
-            # stack x and y --> index * 2
-            R[2*i:2*i+2, 2*i:2*i+2] = measurements[i].covariance
+            # Stack x and y
+            # @   x1  y1  x2  y2  x3
+            # x1  s1  -   -   -   - 
+            # y1  -   s1  -   -   - 
+            # x2  -   -   s2  -   - 
+            # y2  -   -   -   s2  - 
+            # x3  -   -   -   -   s3
+            R[2*i:2*i+2, 2*i:2*i+2] = measurements[i].covariance # return from ARUCO_DET() <------ *Question*
 
-        # Compute own measurements
+        # Measurement
         z_hat = self.robot.measure(self.markers, idx_list)
         z_hat = z_hat.reshape((-1,1),order="F")
+        # Measurement Jacobian
         H = self.robot.derivative_measure(self.markers, idx_list)
 
-        x = self.get_state_vector()
-
+        # Just a term in calculating Kalman Gain
         S = H @ self.P @ H.T + R
+        # Kalman gain:
         K = self.P @ H.T @ np.linalg.inv(S)
 
         ############
@@ -171,43 +193,38 @@ class EKF:
         mask = np.zeros_like(x, dtype=bool)
         mask[:3] = True # this represents the three elements of the 
                         # robots pose, which we do want to update
-        
         mask = mask.squeeze()
 
         # print(mask)
         # print(K)
         # input("Enter to continue")
-        # correct state
+    
+        '''Correct State'''
+        x = self.get_state_vector()
         if self.lock_map:
+            # Only update robot pose
             x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
         else:
-            ''' The original code where x is updated based on measurement'''
+            # Original code where x is updated based on measurement
             x = x + K @ (z - z_hat)
 
+        ''' Update '''
+        self.set_state_vector(x)
+        # State COVAR
+        P = (np.eye(x.shape[0]) - K @ H) @ self.P
+        self.P = P + 0.01*np.eye(self.state_num)       # <------------------ *Question* 0.01 is a tuning parameter
+        
+
+        ## ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         ## logging/monitoring
-        # innovation
+        
         innovation = z - z_hat
         self.v.append(innovation)
 
-        ############
-        P = (np.eye(x.shape[0]) - K @ H) @ self.P
-        # update
-        self.P = P + 0.01*np.eye(self.state_num)
-
-        ######################
-        ### monitoring functions
-        ### Normalized Innovation Squared
         S_inv = np.linalg.inv(S)
         NIS = np.dot(np.dot(innovation.T, S_inv), innovation)
-
         self.nis.append(NIS)
-
-        ''' BL: return state instead of update straight into robot.state'''
-        # self.set_state_vector(x)
-            # self.robot.state = state[0:3,:]
-            # self.markers = np.reshape(state[3:,:], (2,-1), order='F')
-        
-        return x[0:3,:]
+        ## ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
     
 
     def state_transition(self, raw_drive_meas):
@@ -233,6 +250,7 @@ class EKF:
         self.taglist = [i for i in range(1, taglist_num+1)]
         
 
+    # Dont need to add landmarks now
     # def add_landmarks(self, measurements):
     #     if not measurements:
     #         return
@@ -258,6 +276,70 @@ class EKF:
     #         self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
     #         self.P[-2,-2] = self.init_lm_cov**2
     #         self.P[-1,-1] = self.init_lm_cov**2
+
+
+    ####################################################################################
+    ####################################################################################
+    ##################      Other basic funcs      #####################################
+    ####################################################################################
+    ####################################################################################
+
+    # This is only used in Operate, when we press r to reset SLAM function
+    # MIGHT BE UNUSED for now
+    def reset(self):
+        self.robot.state = np.zeros((3, 1))
+        self.markers = np.zeros((2,0))
+        self.taglist = []
+        # Covariance matrix
+        #self.P = np.zeros((3,3))
+        self.P = np.eye(self.state_num)*1e3
+        self.init_lm_cov = 1e3
+        self.robot_init_state = None
+        
+    # Save the map to a file
+    def save_map(self, fname="slam_map.txt"):
+        if self.number_landmarks() > 0:
+            utils = MappingUtils(self.markers, self.P[3:,3:], self.taglist)
+            utils.save(fname)
+
+    # Load the map from a file
+    # MIGHT BE UNUSED for now
+    def recover_from_pause(self, measurements):
+        if not measurements:
+            return False
+        else:
+            lm_new = np.zeros((2,0))
+            lm_prev = np.zeros((2,0))
+            tag = []
+            for lm in measurements:
+                if lm.tag in self.taglist:
+                    lm_new = np.concatenate((lm_new, lm.position), axis=1)
+                    tag.append(int(lm.tag))
+                    lm_idx = self.taglist.index(lm.tag)
+                    lm_prev = np.concatenate((lm_prev,self.markers[:,lm_idx].reshape(2, 1)), axis=1)
+            if int(lm_new.shape[1]) > 2:
+                R,t = self.umeyama(lm_new, lm_prev)
+                theta = math.atan2(R[1][0], R[0][0])
+                self.robot.state[:2]=t[:2]
+                self.robot.state[2]=theta
+                return True
+            else:
+                return False
+
+    # Return the number of landmarks saved in the class
+    def number_landmarks(self):
+        return int(self.markers.shape[1])
+
+    # Return the state vector - including robot pose and all landmarks positions
+    def get_state_vector(self):
+        state = np.concatenate(
+            (self.robot.state, np.reshape(self.markers, (-1,1), order='F')), axis=0)
+        return state
+    
+    # Set the state vector - including robot pose and all landmarks positions
+    def set_state_vector(self, state):
+        self.robot.state = state[0:3,:]
+        self.markers = np.reshape(state[3:,:], (2,-1), order='F')
 
     ##########################################
     ##########################################

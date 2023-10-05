@@ -17,6 +17,7 @@ def calibrateWheelRadius():
     ##########################################
     wheel_velocities_range = range(20, 80, 15)
     delta_times = []
+    length_calibration = 0.5  # meters
 
     for wheel_vel in wheel_velocities_range:
         print("Driving at {} ticks/s.".format(wheel_vel))
@@ -33,11 +34,11 @@ def calibrateWheelRadius():
             ppi.tick = wheel_vel
             ppi.set_velocity([1, 0], time=delta_time)
 
-            uInput = input("Did the robot travel 1m?[y/N]")
+            uInput = input(f"Did the robot travel {length_calibration}m?[y/N]")
             if uInput == 'y':
                 delta_times.append(delta_time)
-                print("Recording that the robot drove 1m in {:.2f} seconds at wheel speed {}.\n".format(delta_time,
-                                                                                                        wheel_vel))
+                print(f"Recording that the robot drove {length_calibration}m" \
+                      "in {delta_time:.2f} seconds at wheel speed {wheel_vel}.\n")
                 break
 
     # Once finished driving, compute the scale parameter by averaging
@@ -45,7 +46,7 @@ def calibrateWheelRadius():
     scale = 0
     for delta_time, wheel_vel in zip(delta_times, wheel_velocities_range):
         # pass # TODO: replace with your code to compute the scale parameter using wheel_vel and delta_time
-        scale += 1 / (wheel_vel * delta_time)
+        scale += length_calibration / (wheel_vel * delta_time)
     
     scale = scale / num
     

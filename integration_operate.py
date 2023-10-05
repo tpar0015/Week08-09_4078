@@ -7,8 +7,8 @@ import json
 import argparse
 import time
 import w8HelperFunc as w8
-from Prac4_Support.Obstacle import *
-import navigate_algo as navi
+from util.Prac4_Support.Obstacle import *
+import util.navigate_algo as navi
 
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
@@ -18,8 +18,8 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from util.pibot import PenguinPi    # access the robot
 import util.DatasetHandler as dh    # save/load functions
 import util.measure as measure      # measurements
-from gui import GUI             # GUI
-import pygame                       # python package for GUI
+# from gui import GUI             # GUI
+# import pygame                       # python package for GUI
 
 #####################################
 '''Import Robot and EKF classes'''
@@ -31,7 +31,7 @@ import slam.aruco_detector as aruco
 import shutil
 
 #####################################
-from operate_navi_noGui import Operate
+from operate_m4_navi import Operate
 import argparse
 
 
@@ -79,7 +79,7 @@ try:
         print("\n\t- Generating pathway for NAVIGATION - \n")
         waypoint, step_list = w8.get_path(target_fruit_list, target_fruits_pos, obstacles, 
                                           robot_step_size= 0.05, 
-                                          goal_tolerance= 0.3)
+                                          goal_tolerance= 0.1)
 
         print(f"--> Total steps: {sum(step_list)}")
         # print(waypoint)
@@ -140,7 +140,6 @@ try:
                     print(f"\nNext waypoint {waypoint}")
                     operate.drive_to_point(waypoint)
 
-
                     ###########################################################
                     # 2. Manual compute robot pose (based on start pose & end points)
                     ###########################################################
@@ -148,7 +147,11 @@ try:
 
                     # Debugging
                     pose = operate.get_robot_pose()
-                    print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")                    
+                    print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
+
+                pose = operate.get_robot_pose()
+                print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
+                # input("Enter to continue: ...")                   
                 
                 ###########################################################
                 # 3. Rotate 360 and SLAM
@@ -158,6 +161,7 @@ try:
                 #     operate.rotate_360_slam()
 
             print(f"Reach {fruit}, wait for 2s")
+
             cur_time = time.time()
             while time.time() - cur_time < 2:
                 print_time = time.time()
