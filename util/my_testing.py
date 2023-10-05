@@ -5,7 +5,7 @@ import numpy as np
 import json
 import argparse
 import time
-import w8HelperFunc as w8
+import util.w8HelperFunc as w8
 from Prac4_Support.Obstacle import *
 import navigate_algo as navi
 

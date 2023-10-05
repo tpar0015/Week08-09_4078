@@ -21,6 +21,9 @@ class aruco_detector:
         # Perform detection
         corners, ids, rejected = cv2.aruco.detectMarkers(
             img, self.aruco_dict, parameters=self.aruco_params)
+        
+        # rvecs - rotation vectors of the marker respect to camera frame
+        # tvecs - translation vectors of the marker respect to camera frame 
         rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
             corners, self.marker_length, self.camera_matrix, self.distortion_params)
         # rvecs, tvecs = cv2.aruco.estimatePoseSingleMarkers(corners, self.marker_length, self.camera_matrix, self.distortion_params) # use this instead if you got a value error

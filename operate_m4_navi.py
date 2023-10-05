@@ -6,8 +6,8 @@ import json
 import argparse
 import time
 import w8HelperFunc as w8
-from util.Prac4_Support.Obstacle import *
-import util.navigate_algo as navi
+from Prac4_Support.Obstacle import *
+import navigate_algo as navi
 
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
@@ -17,16 +17,19 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from util.pibot import PenguinPi    # access the robot
 import util.DatasetHandler as dh    # save/load functions
 import util.measure as measure      # measurements
-from util.gui import GUI             # GUI
+from gui import GUI             # GUI
 import pygame                       # python package for GUI
 
 #####################################
 '''Import Robot and EKF classes'''
 #####################################
 sys.path.insert(0, "{}/slam".format(os.getcwd()))
-from slam.ekf import EKF
-from slam.robot import Robot
-import slam.aruco_detector as aruco
+# from slam.ekf import EKF
+# from slam.robot import Robot
+# import slam.aruco_detector as aruco
+from slam_rehaul.ekf_rewrite import EKF
+from slam_rehaul.robot import Robot
+import slam_rehaul.aruco_detector as aruco
 import shutil
 
 
@@ -136,8 +139,6 @@ class Operate:
             # self.ekf.add_landmarks(lms) # <----------- DONT NEED THIS
 
             for lm in lms:
-                # print(type(lms)) # <-- a list!
-                # print(type(lm))
                 if lm.tag not in range(1, 11):
                     lms.remove(lm)
 

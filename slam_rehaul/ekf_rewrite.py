@@ -4,7 +4,7 @@
 # Oct 5
 
 import numpy as np
-from mapping_utils import MappingUtils
+# from mapping_utils import MappingUtils
 import cv2
 import math
 import pygame
@@ -170,7 +170,7 @@ class EKF:
             # y1  -   s1  -   -   - 
             # x2  -   -   s2  -   - 
             # y2  -   -   -   s2  - 
-            # x3  -   -   -   -   s3
+            # x3  -   -   -   -   s3 
             R[2*i:2*i+2, 2*i:2*i+2] = measurements[i].covariance # return from ARUCO_DET() <------ *Question*
 
         # Measurement
@@ -183,6 +183,8 @@ class EKF:
         S = H @ self.P @ H.T + R
         # Kalman gain:
         K = self.P @ H.T @ np.linalg.inv(S)
+
+        x = self.get_state_vector()
 
         ############
         ## freeze the position of the landmarks!
@@ -200,7 +202,6 @@ class EKF:
         # input("Enter to continue")
     
         '''Correct State'''
-        x = self.get_state_vector()
         if self.lock_map:
             # Only update robot pose
             x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
@@ -210,10 +211,15 @@ class EKF:
 
         ''' Update '''
         self.set_state_vector(x)
+        
         # State COVAR
         P = (np.eye(x.shape[0]) - K @ H) @ self.P
-        self.P = P + 0.01*np.eye(self.state_num)       # <------------------ *Question* 0.01 is a tuning parameter
+        self.P = P 
+
+        # self.P = P + 0.01*np.eye(self.state_num)       # <------------------ *Question* 0.01 is a tuning parameter
         
+        print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+
 
         ## ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         ## logging/monitoring
@@ -297,34 +303,34 @@ class EKF:
         self.robot_init_state = None
         
     # Save the map to a file
-    def save_map(self, fname="slam_map.txt"):
-        if self.number_landmarks() > 0:
-            utils = MappingUtils(self.markers, self.P[3:,3:], self.taglist)
-            utils.save(fname)
+    # def save_map(self, fname="slam_map.txt"):
+        # if self.number_landmarks() > 0:
+        #     utils = MappingUtils(self.markers, self.P[3:,3:], self.taglist)
+        #     utils.save(fname)
 
     # Load the map from a file
     # MIGHT BE UNUSED for now
-    def recover_from_pause(self, measurements):
-        if not measurements:
-            return False
-        else:
-            lm_new = np.zeros((2,0))
-            lm_prev = np.zeros((2,0))
-            tag = []
-            for lm in measurements:
-                if lm.tag in self.taglist:
-                    lm_new = np.concatenate((lm_new, lm.position), axis=1)
-                    tag.append(int(lm.tag))
-                    lm_idx = self.taglist.index(lm.tag)
-                    lm_prev = np.concatenate((lm_prev,self.markers[:,lm_idx].reshape(2, 1)), axis=1)
-            if int(lm_new.shape[1]) > 2:
-                R,t = self.umeyama(lm_new, lm_prev)
-                theta = math.atan2(R[1][0], R[0][0])
-                self.robot.state[:2]=t[:2]
-                self.robot.state[2]=theta
-                return True
-            else:
-                return False
+    # def recover_from_pause(self, measurements):
+    #     if not measurements:
+    #         return False
+    #     else:
+    #         lm_new = np.zeros((2,0))
+    #         lm_prev = np.zeros((2,0))
+    #         tag = []
+    #         for lm in measurements:
+    #             if lm.tag in self.taglist:
+    #                 lm_new = np.concatenate((lm_new, lm.position), axis=1)
+    #                 tag.append(int(lm.tag))
+    #                 lm_idx = self.taglist.index(lm.tag)
+    #                 lm_prev = np.concatenate((lm_prev,self.markers[:,lm_idx].reshape(2, 1)), axis=1)
+    #         if int(lm_new.shape[1]) > 2:
+    #             R,t = self.umeyama(lm_new, lm_prev)
+    #             theta = math.atan2(R[1][0], R[0][0])
+    #             self.robot.state[:2]=t[:2]
+    #             self.robot.state[2]=theta
+    #             return True
+    #         else:
+    #             return False
 
     # Return the number of landmarks saved in the class
     def number_landmarks(self):
