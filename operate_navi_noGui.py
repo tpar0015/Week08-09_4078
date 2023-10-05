@@ -77,8 +77,8 @@ class Operate:
         self.command = {'motion': [0, 0]}
         self.control_time = 0
 
-        self.turn_vel = 10
-        self.wheel_vel = 30
+        self.turn_vel = 30
+        self.wheel_vel = 50
 
 
         if gui:
@@ -222,6 +222,7 @@ class Operate:
 
             start_time = time.time()
             cur_time = start_time
+            
             while cur_time - start_time < turn_time:
                 lv, rv = self.pibot.set_velocity([0, 1])    # turn on the spot
                 # self.command['motion'] = [0, 1]
@@ -332,27 +333,29 @@ class Operate:
         baseline = self.ekf.robot.wheels_width
         # Get pose
         robot_pose = self.get_robot_pose()
-        print("-----------------------")
         # print(f"waypoint: {waypoint}")
         # print(f"robot_pose: {robot_pose}")
         angle_to_waypoint = np.arctan2((waypoint[1]-robot_pose[1]), (waypoint[0]-robot_pose[0]))
         
         '''BL: Mathemetically not a correct way to compute robot_angle'''
         robot_angle = -robot_pose[2] + angle_to_waypoint
-        if robot_angle == np.pi or robot_angle == -np.pi:
-            robot_angle = 0
-        elif (robot_angle > np.pi):
+
+        # if robot_angle == np.pi or robot_angle == -np.pi:
+        #     robot_angle = 0
+
+        if (robot_angle > np.pi):
             robot_angle = -2*np.pi + robot_angle
         elif (robot_angle < -np.pi):
             robot_angle = 2*np.pi + robot_angle
 
-        print(f"angle to waypoint: {np.rad2deg(angle_to_waypoint)}")
-        print(f"current angle pose: {np.rad2deg(robot_pose[2])}")
-        print(f"Angle to turn: {np.rad2deg(robot_angle)}\n")
+        # print("-----------------------")
+        # print(f"angle to waypoint: {np.rad2deg(angle_to_waypoint)}")
+        # print(f"current angle pose: {np.rad2deg(robot_pose[2])}")
+        # print(f"Angle to turn: {np.rad2deg(robot_angle)}\n")
         if abs(robot_angle) > np.pi/3:
             # input("Turning big angle, enter to continue")
             print("Turning BIG angle !!!!!!!!!!!!!!")
-        print("--------------------------------")
+        # print("--------------------------------")
 
         # Compute
         turn_time = baseline/2 * robot_angle / (scale * self.turn_vel)
@@ -384,8 +387,8 @@ class Operate:
         robot_dist = ((waypoint[1]-robot_pose[1])**2 + (waypoint[0]-robot_pose[0])**2)**(1/2)
         drive_time = robot_dist / (scale * self.wheel_vel)
 
-        print(f"Distance to drive: {robot_dist}")
-        print("--------------------------------")
+        # print(f"Distance to drive: {robot_dist}")
+        # print("--------------------------------")
 
         return drive_time
 
