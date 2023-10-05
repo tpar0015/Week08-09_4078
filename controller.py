@@ -57,7 +57,7 @@ class RobotControl:
             self.pibot.set_velocity([0 + 1*(not turn_flag), 1*turn_flag], time=dt)
             # Localize
             self.localize()
-            # Update GUI
+            # Update GUIv
             self.update_gui() 
             # Update loop conditions
             dist_diff, ang_diff = self.pose_difference(end_pose)

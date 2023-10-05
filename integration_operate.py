@@ -47,6 +47,7 @@ parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
 # parser.add_argument("--map", type=str, default='Home_test_map.txt')
 parser.add_argument("--map", type=str, default='map/M4_prac_map_full.txt')
+parser.add_argument("--shop", type=str, default='M4_Lab4_shopping_list.txt')
 
 parser.add_argument("--plot", type=int, default=1)
 args, _ = parser.parse_known_args()
@@ -65,7 +66,7 @@ try:
         aruco_taglist = [i for i in range(1,11)]
 
         # print target fruits
-        target_fruit_list = w8.read_search_list("M4_prac_shopping_list.txt") # change to 'M4_true_shopping_list.txt' for lv2&3
+        target_fruit_list = w8.read_search_list(args.shop) # change to 'M4_true_shopping_list.txt' for lv2&3
         target_fruits_pos = w8.print_target_fruits_pos(target_fruit_list, fruits_list, fruits_true_pos)
 
         #######################################################################################
@@ -110,28 +111,22 @@ except KeyboardInterrupt:
 try:
     if start:
         
-        operate = Operate(args, gui = True)
+        operate = Operate(args, gui = False)
         # operate.stop()
-    
+        
+        operate.prompt_start_slam(aruco_true_pos)
+
         for fruit, path in waypoint.items():
-
-            # Turn off SLAM
-            operate.ekf_on = False
-
-            # operate.rotate_360_slam()
-
-            # Slam related init
-            counter_slam = 0
-            operate.prompt_start_slam(aruco_true_pos)
-
             # Ignore first waypoint
             for waypoint in path[1:]:
                 
                 start_pose = operate.get_robot_pose()
 
                 if operate.ekf_on:
-                    operate.get_SLAM_pose_WITH_drive(start_pose, waypoint)
-                    print(operate.get_robot_pose())
+                    cur_pose = operate.get_robot_pose()
+                    end_pose = operate.get_end_pose(cur_pose, waypoint)
+                    print(f"---> Way point pose to go to {end_pose[:1]} {np.rad2deg(end_pose[-1])}")
+                    operate.control(end_pose)
                 
                 else:
                     ###########################################################
@@ -147,11 +142,11 @@ try:
 
                     # Debugging
                     pose = operate.get_robot_pose()
-                    print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
+                    print(f"---> Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
 
                 pose = operate.get_robot_pose()
-                print(f"--->Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
-                # input("Enter to continue: ...")                   
+                print(f"\n---> Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
+                input("Enter to continue: ...\n")                   
                 
                 ###########################################################
                 # 3. Rotate 360 and SLAM
@@ -160,13 +155,15 @@ try:
                 # if counter_slam == 12:
                 #     operate.rotate_360_slam()
 
-            print(f"Reach {fruit}, wait for 2s")
+            print(f"Reach {fruit}, wait for 2s\n\n\n")
 
+            shopping_time = 5
+            print_period = 0.5
             cur_time = time.time()
-            while time.time() - cur_time < 2:
+            while time.time() - cur_time < shopping_time:
                 print_time = time.time()
                 # Print every 0.2s
-                if time.time() - print_time > 0.2:
+                if time.time() - print_time > print_period:
                     print(".", end="")
                     print_time = time.time()
 

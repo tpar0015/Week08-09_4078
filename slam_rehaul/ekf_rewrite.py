@@ -126,13 +126,6 @@ class EKF:
         # State COVAR
         self.P = F @ self.P @ F.T + Q
 
-        '''BL: Print out the state continously here'''
-        ''' Well, this state is not yet updated!'''
-        # print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2]) % 360}")
-        # print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {self.robot.state[2]}")
-
-
-
     '''
     Input:
         - measurements: return from ARUCO_DET()

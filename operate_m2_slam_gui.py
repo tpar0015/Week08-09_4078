@@ -104,6 +104,7 @@ class Operate:
     # SLAM with ARUCO markers       
     def update_slam(self, drive_meas):
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+        
         if self.request_recover_robot:
             pass
             # is_success = self.ekf.recover_from_pause(lms)
