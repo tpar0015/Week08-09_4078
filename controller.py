@@ -85,7 +85,6 @@ class RobotControl:
         drive_time = dist / (self.scale * self.wheel_vel) 
         return drive_time
 
-
     def angle_parameters(self, point):
         pose = self.get_pose()
         angle = np.arctan2(point[1] - pose[1], point[0] - pose[0]) - pose[2]
