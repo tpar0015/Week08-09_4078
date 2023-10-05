@@ -30,6 +30,9 @@ class GUI:
         pygame.font.init()
         self.m2pixel = width / 3    # pixels / meter
 
+        # landmark_surf = self.draw_landmarks()
+        # self.screen.blit(landmark_surf, (0,0), special_flags=pygame.BLEND_RGBA_ADD)
+
     def update_state(self, state):
         self.state = state
 

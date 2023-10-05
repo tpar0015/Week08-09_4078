@@ -110,7 +110,7 @@ except KeyboardInterrupt:
 try:
     if start:
         
-        operate = Operate(args, gui = False)
+        operate = Operate(args, gui = True)
         # operate.stop()
     
         for fruit, path in waypoint.items():
@@ -131,6 +131,7 @@ try:
 
                 if operate.ekf_on:
                     operate.get_SLAM_pose_WITH_drive(start_pose, waypoint)
+                    print(operate.get_robot_pose())
                 
                 else:
                     ###########################################################
