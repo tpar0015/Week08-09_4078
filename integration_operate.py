@@ -79,7 +79,7 @@ try:
         print("\n\t- Generating pathway for NAVIGATION - \n")
         waypoint, step_list = w8.get_path(target_fruit_list, target_fruits_pos, obstacles, 
                                           robot_step_size= 0.05, 
-                                          goal_tolerance= 0.3)
+                                          goal_tolerance= 0.1)
 
         print(f"--> Total steps: {sum(step_list)}")
         # print(waypoint)
