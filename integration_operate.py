@@ -7,8 +7,8 @@ import json
 import argparse
 import time
 import w8HelperFunc as w8
-from Prac4_Support.Obstacle import *
-import navigate_algo as navi
+from util.Prac4_Support.Obstacle import *
+import util.navigate_algo as navi
 
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
@@ -18,8 +18,8 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from util.pibot import PenguinPi    # access the robot
 import util.DatasetHandler as dh    # save/load functions
 import util.measure as measure      # measurements
-from gui import GUI             # GUI
-import pygame                       # python package for GUI
+# from gui import GUI             # GUI
+# import pygame                       # python package for GUI
 
 #####################################
 '''Import Robot and EKF classes'''
@@ -31,7 +31,7 @@ import slam.aruco_detector as aruco
 import shutil
 
 #####################################
-from operate_navi_noGui import Operate
+from operate_m4_navi import Operate
 import argparse
 
 

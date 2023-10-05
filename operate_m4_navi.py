@@ -71,11 +71,15 @@ class Operate:
         else:
             shutil.rmtree(self.folder)
             os.makedirs(self.folder)
+        # initialise images from camera
+        self.img = np.zeros([240,320,3], dtype=np.uint8)
+        self.aruco_img = np.zeros([240,320,3], dtype=np.uint8)
+        self.bg = pygame.image.load('pics/gui_mask.jpg')
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Use self.command to use self.control func inside POLLING loop
         self.command = {'motion': [0, 0]}
-        self.control_time = 0
+        # self.control_time = 0
 
         self.turn_vel = 30
         self.wheel_vel = 50
@@ -145,9 +149,7 @@ class Operate:
                 # print(f"Detect aruco: {lm.tag}\n{lm.position}")
                 # print("#~#~#~#~#~#~#~#~#~#~#~#~#~#~#~#~#~#~")
 
-            slam_pose = self.ekf.update(lms)
-
-        return new_tag_detected, slam_pose
+            self.ekf.update(lms)
 
 
     # wheel and camera calibration for SLAM

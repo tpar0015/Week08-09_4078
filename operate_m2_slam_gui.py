@@ -17,10 +17,10 @@ import pygame # python package for GUI
 import shutil # python package for file operations
 
 # import SLAM components
-sys.path.insert(0, "{}/slam".format(os.getcwd()))
-from slam.ekf_Chris import EKF
-from slam.robot import Robot
-import slam.aruco_detector as aruco
+# sys.path.insert(0, "{}/slam".format(os.getcwd()))
+from slam_rehaul.ekf_rewrite import EKF
+from slam_rehaul.robot import Robot
+import slam_rehaul.aruco_detector as aruco
 
 
 class Operate:

@@ -73,14 +73,16 @@ class EKF:
         ###################################
         ## setup logs to be used for monitoring and in algoritms
 
-        # 1. keep track and calculate the Innovation
-        # v = z - z_hat
+        # log Innovation v = z - z_hat
         self.v = []
-        ## keep track of NIS, Normalized Innovation Squared
+        # keep track of NIS, Normalized Innovation Squared
         self.nis = []
 
         ### chi-squared Distribution <-------------------- *Question*
         ## would require scipy
+
+        # Create some sort of pose uncertainty logging
+        # self.pose_uncertainty = []
 
         
     ##########################################
@@ -100,7 +102,10 @@ class EKF:
 
     '''
     Input:
-        - drive measure, including wheel vel, drive time, and wheel VARIANCE (fixed at 1 for now)
+        - drive measure, which has:
+            * drive time
+            * wheel vel 
+            * wheel VARIANCE (fixed at 1 for now)
     Output ==> self update
         - P:
         - robot.drive = manual_set_robot_pose
@@ -128,7 +133,23 @@ class EKF:
 
 
 
-    # the update step of EKF
+    '''
+    Input:
+        - measurements: return from ARUCO_DET()
+            * lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+            * list of Marker() objects, which has
+                * position and tag - input by ARUCO_DET()
+                * covar: preset at 0.1*np.eye(2)
+    Output:
+        - self update
+            * self.robot.state
+            * self.P
+    Description:
+        - Follow the lecture slides
+        
+        - Added map lock by Christopher
+        - Added logging by Christopher
+    '''
     def update(self, measurements):
         if not measurements:
             return
@@ -155,10 +176,8 @@ class EKF:
         # Measurement
         z_hat = self.robot.measure(self.markers, idx_list)
         z_hat = z_hat.reshape((-1,1),order="F")
-        # Meas Jacobian
+        # Measurement Jacobian
         H = self.robot.derivative_measure(self.markers, idx_list)
-
-        x = self.get_state_vector()
 
         # Just a term in calculating Kalman Gain
         S = H @ self.P @ H.T + R
@@ -174,43 +193,38 @@ class EKF:
         mask = np.zeros_like(x, dtype=bool)
         mask[:3] = True # this represents the three elements of the 
                         # robots pose, which we do want to update
-        
         mask = mask.squeeze()
 
         # print(mask)
         # print(K)
         # input("Enter to continue")
-        # correct state
+    
+        '''Correct State'''
+        x = self.get_state_vector()
         if self.lock_map:
+            # Only update robot pose
             x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
         else:
-            ''' The original code where x is updated based on measurement'''
+            # Original code where x is updated based on measurement
             x = x + K @ (z - z_hat)
 
+        ''' Update '''
+        self.set_state_vector(x)
+        # State COVAR
+        P = (np.eye(x.shape[0]) - K @ H) @ self.P
+        self.P = P + 0.01*np.eye(self.state_num)       # <------------------ *Question* 0.01 is a tuning parameter
+        
+
+        ## ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         ## logging/monitoring
-        # innovation
+        
         innovation = z - z_hat
         self.v.append(innovation)
 
-        ############
-        P = (np.eye(x.shape[0]) - K @ H) @ self.P
-        # update
-        self.P = P + 0.01*np.eye(self.state_num)
-
-        ######################
-        ### monitoring functions
-        ### Normalized Innovation Squared
         S_inv = np.linalg.inv(S)
         NIS = np.dot(np.dot(innovation.T, S_inv), innovation)
-
         self.nis.append(NIS)
-
-        ''' BL: return state instead of update straight into robot.state'''
-        # self.set_state_vector(x)
-            # self.robot.state = state[0:3,:]
-            # self.markers = np.reshape(state[3:,:], (2,-1), order='F')
-        
-        return x[0:3,:]
+        ## ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
     
 
     def state_transition(self, raw_drive_meas):
