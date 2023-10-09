@@ -92,8 +92,6 @@ class Operate:
             drive_meas = measure.Drive(lv, -rv, dt)
         self.control_clock = time.time()
         return drive_meas
-        
-
 
     # camera control
     def take_pic(self):
@@ -102,7 +100,7 @@ class Operate:
             self.data.write_image(self.img)
 
     # SLAM with ARUCO markers       
-    def update_slam(self, drive_meas):
+    def update_slam(self, drive_meas, print_period=1):
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
         
         if self.request_recover_robot:
@@ -116,7 +114,7 @@ class Operate:
             #     self.ekf_on = False
             # self.request_recover_robot = False
         elif self.ekf_on: # and not self.debug_flag:
-            self.ekf.predict(drive_meas)
+            self.ekf.predict(drive_meas, print_period)
             # self.ekf.add_landmarks(lms) # <------------------------------
 
             # Print all the lm_tag
@@ -125,7 +123,7 @@ class Operate:
                 if lm.tag not in range(1, 11):
                     lms.remove(lm)
                     
-            self.ekf.update(lms)
+            self.ekf.update(lms, print_period)
 
     # save images taken by the camera
     def save_image(self):
@@ -335,7 +333,8 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--map", type=str, default='M4_slam_test.txt')
+
+    parser.add_argument("--map", type=str, default='map/nhnh_output.txt')
 
     args, _ = parser.parse_known_args()
     
@@ -383,7 +382,6 @@ if __name__ == "__main__":
 
         # if abs(operate.ekf.robot.state[0:3, 0][-1]) == 360:
         #     input("Enter to reset SLAM")
-
 
         #############################################3
         # visualise

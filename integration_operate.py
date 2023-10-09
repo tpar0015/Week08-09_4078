@@ -54,15 +54,17 @@ args, _ = parser.parse_known_args()
 
 # read in the true map
 fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
+print(fruits_list)
+print(args.map)
 
-path_navi = True
-start = 1
+path_navi = 1
+start = 1  
 slam = 1
 
 
 try:
-    if path_navi:
-        # create a list start from 1 to 10
+    if path_navi: 
+    # create a list start from 1 to 10
         aruco_taglist = [i for i in range(1,11)]
 
         # print target fruits
@@ -74,16 +76,19 @@ try:
 
         # Generate obstacle list based on Selected shape
         # This consists of 10 aruco and 5 obstable fruit
-        obstacles, obs_pos = w8.get_obstacles(aruco_true_pos, fruits_true_pos, target_fruits_pos, shape = "rectangle", size = 0.3)
+        obstacles, obs_pos = w8.get_obstacles(aruco_true_pos, fruits_true_pos, target_fruits_pos, 
+                                              shape = "rectangle", 
+                                              size = 0.35,   # need to account for robot size
+                                              )
 
         # #######################################################################################
         print("\n\t- Generating pathway for NAVIGATION - \n")
         waypoint, step_list = w8.get_path(target_fruit_list, target_fruits_pos, obstacles, 
-                                          robot_step_size= 0.05, 
-                                          goal_tolerance= 0.1)
+                                          robot_step_size= 0.1,
+                                          goal_tolerance= 0.3,
+                                          ccw=True)
 
         print(f"--> Total steps: {sum(step_list)}")
-        # print(waypoint)
 
         # #######################################################################################
         if args.plot:
@@ -99,7 +104,7 @@ except KeyboardInterrupt:
 # point4 = [0.1, 0.4]
 # # create waypoint
 # waypoint = {
-#     "garlic": [point0, point1, point2, point3, point4]
+#     "orange": [point0, point1, point2, point3, point4]
 # }
 
 ###################################################################################
@@ -119,35 +124,33 @@ try:
         for fruit, path in waypoint.items():
             # Ignore first waypoint
             for waypoint in path[1:]:
+
+                # if operate.ekf_on:
+                    # cur_pose = operate.get_robot_pose()
+                    # end_pose = operate.get_end_pose(cur_pose, waypoint)
+                    # operate.control(end_pose)
+                    # operate.drive_to_point(waypoint)
                 
-                start_pose = operate.get_robot_pose()
+                # else:
+                ###########################################################
+                # 1. Robot drives to the waypoint
+                ###########################################################
+                print(f"\nNext waypoint {waypoint}")
+                operate.drive_to_point(waypoint)
+                operate.stop()
 
-                if operate.ekf_on:
-                    cur_pose = operate.get_robot_pose()
-                    end_pose = operate.get_end_pose(cur_pose, waypoint)
-                    print(f"---> Way point pose to go to {end_pose[:1]} {np.rad2deg(end_pose[-1])}")
-                    operate.control(end_pose)
-                
-                else:
-                    ###########################################################
-                    # 1. Robot drives to the waypoint
-                    ###########################################################
-                    print(f"\nNext waypoint {waypoint}")
-                    operate.drive_to_point(waypoint)
+                ###########################################################
+                # 2. Manual compute robot pose (based on start pose & end points)
+                ###########################################################
+                # operate.manual_set_robot_pose(start_pose, waypoint, debug=False)
 
-                    ###########################################################
-                    # 2. Manual compute robot pose (based on start pose & end points)
-                    ###########################################################
-                    operate.manual_set_robot_pose(start_pose, waypoint, debug=False)
-
-                    # Debugging
-                    pose = operate.get_robot_pose()
-                    print(f"---> Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
-
+                # Debugging
                 pose = operate.get_robot_pose()
-                print(f"\n---> Arrived at {waypoint} - Robot pose: {np.rad2deg(pose[2])}")
-                input("Enter to continue: ...\n")                   
-                
+                x = pose[0]
+                y = pose[1]
+                theta = np.rad2deg(pose[2])
+                print(f"\n---> ROBOT pose w slame updated: [{x} {y} {theta}]")
+                # input("enter ...")
                 ###########################################################
                 # 3. Rotate 360 and SLAM
                 ###########################################################
@@ -155,16 +158,16 @@ try:
                 # if counter_slam == 12:
                 #     operate.rotate_360_slam()
 
-            print(f"Reach {fruit}, wait for 2s\n\n\n")
-
+            
             shopping_time = 5
             print_period = 0.5
+            print(f"Reach {fruit}, wait for {shopping_time}s\n\n\n")
             cur_time = time.time()
             while time.time() - cur_time < shopping_time:
                 print_time = time.time()
                 # Print every 0.2s
                 if time.time() - print_time > print_period:
-                    print(".", end="")
+                    print("...", end=" ")
                     print_time = time.time()
 
             # input("Enter to continute\n")

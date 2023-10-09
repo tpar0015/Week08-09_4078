@@ -14,7 +14,7 @@ class PenguinPi:
         self.wheel_vel = [0, 0]
         
         ''' Bill modified this - 15 Sep'''
-        self.tick = 50
+        self.tick = 30
         self.turning_tick = 10
 
     ##########################################
