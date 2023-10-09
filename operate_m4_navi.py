@@ -142,7 +142,7 @@ class Operate:
                 # print("\n#~#~#~#~#~#~#~#~#~")
 
             # Only update if see >1 lm
-            if len(lms) > 1:
+            if len(lms) > 0:
                 self.ekf.update(lms, print_period)
 
 

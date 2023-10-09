@@ -323,13 +323,13 @@ class Map:
 
 
         nx.draw(G_img, pos=node_positions, node_size=node_sizes, with_labels=False, node_color=node_colors, edge_color=edge_colors, width=edge_width)
-        plt.show(block=False)
-        # # Figure size
-        # fig = plt.gcf()
-        # fig.set_size_inches(18.5, 10.5)
+        # plt.show(block=False)
+        # Figure size
+        fig = plt.gcf()
+        fig.set_size_inches(18.5, 10.5)
 
-        # plt.savefig("djikstras_map.png")
-        # # Display Image
+        plt.savefig("djikstras_map.png")
+        # Display Image
         # img = Image.open('djikstras_map.png')
         
 

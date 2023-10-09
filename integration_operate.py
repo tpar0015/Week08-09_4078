@@ -66,7 +66,7 @@ slam = 1
 
 try:
     if alternate_path_navi:
-        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(400,400), fruit_size=(300,300))
+        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(400,400), fruit_size=(500, 500))
         arena.generate_map()
         arena.add_aruco_markers()
         arena.add_fruits_as_obstacles()
@@ -154,8 +154,11 @@ try:
         #     # Ignore first waypoint
         #     for waypoint in path[1:]:
         for one_path in path:
-            for waypoint in one_path:
-                waypoint = waypoint * 0.001 # Convert to m
+            for waypoint_mm in one_path:
+                waypoint = []
+                for coor in waypoint_mm:
+                    waypoint.append(coor * 0.001)
+                # waypoint = waypoint * 0.001 # Convert to m
                 # if operate.ekf_on:
                     # cur_pose = operate.get_robot_pose()
                     # end_pose = operate.get_end_pose(cur_pose, waypoint)
