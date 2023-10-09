@@ -22,8 +22,8 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 # import utility functions
 sys.path.insert(0, "{}/util".format(os.getcwd()))
 from pibot import PenguinPi    # access the robot
-import DatasetHandler as dh    # save/load functions
-import measure as measure      # measurements
+import util.DatasetHandler as dh    # save/load functions
+import util.measure as measure      # measurements
 # import pygame                       # python package for GUI
 
 
