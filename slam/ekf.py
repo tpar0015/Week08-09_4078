@@ -138,6 +138,8 @@ class EKF:
         self.set_state_vector(x)
         self.P = P
 
+        print(f"~~Update: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+
 
     def state_transition(self, raw_drive_meas):
         n = self.number_landmarks()*2 + 3
