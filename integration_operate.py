@@ -9,6 +9,7 @@ import time
 import w8HelperFunc as w8
 from Prac4_Support.Obstacle import *
 import navigate_algo as navi
+from Navigation_Alternate.mapping import Map
 
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
@@ -57,12 +58,22 @@ fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
 print(fruits_list)
 print(args.map)
 
-path_navi = 1
+path_navi = 0
+alternate_path_navi = 1
 start = 1  
 slam = 1
 
 
 try:
+    if alternate_path_navi:
+        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(400,400), fruit_size=(300,300))
+        arena.generate_map()
+        arena.add_aruco_markers()
+        arena.add_fruits_as_obstacles()
+        arena.get_targets()
+        # arena.draw_arena(draw_path=True)
+        path = arena.get_path_xy()
+        
     if path_navi: 
     # create a list start from 1 to 10
         aruco_taglist = [i for i in range(1,11)]
@@ -139,10 +150,12 @@ try:
         
         operate.prompt_start_slam(aruco_true_pos)
 
-        for fruit, path in waypoint.items():
-            # Ignore first waypoint
-            for waypoint in path[1:]:
-
+        # for fruit, path in waypoint.items():
+        #     # Ignore first waypoint
+        #     for waypoint in path[1:]:
+        for one_path in path:
+            for waypoint in one_path:
+                waypoint = waypoint * 0.001 # Convert to m
                 # if operate.ekf_on:
                     # cur_pose = operate.get_robot_pose()
                     # end_pose = operate.get_end_pose(cur_pose, waypoint)
@@ -176,7 +189,8 @@ try:
             ###########################################################
             shopping_time = 3
             print_period = 0.5
-            print(f"Reach {fruit}, wait for {shopping_time}s\n\n\n")
+            # print(f"Reach {fruit}, wait for {shopping_time}s\n\n\n")
+            print("Reached Fruit")
             cur_time = time.time()
             while time.time() - cur_time < shopping_time:
                 print_time = time.time()
