@@ -58,23 +58,24 @@ fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
 print(fruits_list)
 print(args.map)
 
-path_navi = 0
-alternate_path_navi = 1
+
+bug2_navi = 0
+a_star_navi = 1
 start = 1  
 slam = 1
 
 
 try:
-    if alternate_path_navi:
-        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(400,400), fruit_size=(500, 500))
+    if a_star_navi:
+        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(400,400), fruit_size=(400, 400))
         arena.generate_map()
         arena.add_aruco_markers()
         arena.add_fruits_as_obstacles()
         arena.get_targets()
-        # arena.draw_arena(draw_path=True)
+        arena.draw_arena(draw_path=True)
         path = arena.get_path_xy()
         
-    if path_navi: 
+    if bug2_navi: 
     # create a list start from 1 to 10
         aruco_taglist = [i for i in range(1,11)]
 
@@ -101,7 +102,6 @@ try:
         # # Plot all the target fruit
         # for target in target_fruits_pos:
         #     plt.plot(target[0], target[1], 'bo')
-
         # plt.title("Waypoint path")
         # plt.xlim(-1.5, 1.5)
         # plt.ylim(-1.5, 1.5)
@@ -153,42 +153,38 @@ try:
         # for fruit, path in waypoint.items():
         #     # Ignore first waypoint
         #     for waypoint in path[1:]:
+        
+        waypoint_count = 0
+
         for one_path in path:
             for waypoint_mm in one_path:
+                # Convert to m
                 waypoint = []
                 for coor in waypoint_mm:
                     waypoint.append(coor * 0.001)
-                # waypoint = waypoint * 0.001 # Convert to m
-                # if operate.ekf_on:
-                    # cur_pose = operate.get_robot_pose()
-                    # end_pose = operate.get_end_pose(cur_pose, waypoint)
-                    # operate.control(end_pose)
-                    # operate.drive_to_point(waypoint)
-                
-                # else:
+                # Used to enable SLAM back to update if see 1 landmark
+                waypoint_count += 1 
+                if waypoint_count == 5:     # Can be further improve/tune <--------
+                    lms_seen_to_update = 2
+                else:
+                    lms_seen_to_update = 1
                 ###########################################################
                 # 1. Robot drives to the waypoint
+                # 2. Update robot pose using SLAM (during turn and drive)
                 ###########################################################
-                print(f"\nNext waypoint {waypoint}")
-                operate.drive_to_point(waypoint)
+                print("\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+                print(f"Next waypoint {waypoint}")
+                operate.drive_to_point(waypoint, lms_seen_to_update)
                 operate.stop()
-
-                ###########################################################
-                # 2. Manual compute robot pose (based on start pose & end points)
-                ###########################################################
-                # operate.manual_set_robot_pose(start_pose, waypoint, debug=False)
-
                 # Debugging
                 pose = operate.get_robot_pose()
                 x = pose[0]
                 y = pose[1]
                 theta = np.rad2deg(pose[2])
-                print(f"\n---> ROBOT pose w slame updated: [{x} {y} {theta}]")
-
-            
+                print(f"---> ROBOT pose: [{x} {y} {theta}]")
+                # input("Enter to continue")
             ###########################################################
             # 3. When reach the target, wait and continue
-            # any post-processing here?
             ###########################################################
             shopping_time = 3
             print_period = 0.5
@@ -196,11 +192,7 @@ try:
             print("Reached Fruit")
             cur_time = time.time()
             while time.time() - cur_time < shopping_time:
-                print_time = time.time()
-                # Print every 0.2s
-                if time.time() - print_time > print_period:
-                    print("...", end=" ")
-                    print_time = time.time()
+                print(".", end="")
 
             # input("Enter to continute\n")
 

@@ -88,8 +88,8 @@ class Map:
         Re calibrates map with object blocked out on nodes.
         """
         obs_x, obs_y = obs_xy
-        obs_x = obs_x + object_size[0]/2
-        obs_y = obs_y + object_size[1]/2
+        # obs_x = obs_x + object_size[0]/2
+        # obs_y = obs_y + object_size[1]/2
         self.G.reset_graph()
         closest_node = self.G.get_nearest_node((obs_x, obs_y))
         obstacle_nodes = self.G.adjacent_nodes(closest_node, object_size)

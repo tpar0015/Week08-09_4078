@@ -121,12 +121,13 @@ class Operate:
     ##############################################################################
     ######################      SLAM related    ##################################
     ##############################################################################
-    
+
     - Uncommented the "add_landmarks" in update_slam()
+    - Only do update step if CERTAIN NUM of lms are seen
     '''
 
     # SLAM with ARUCO markers       
-    def update_slam(self, drive_meas, print_period= 0):
+    def update_slam(self, drive_meas, lms_seen_to_update, print_period= 0):
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
 
         if self.request_recover_robot: pass
@@ -142,7 +143,7 @@ class Operate:
                 # print("\n#~#~#~#~#~#~#~#~#~")
 
             # Only update if see >1 lm
-            if len(lms) > 0:
+            if len(lms) >= lms_seen_to_update:
                 self.ekf.update(lms, print_period)
 
 
@@ -212,7 +213,7 @@ class Operate:
         return drive_meas
 
 
-    def drive_to_point(self, waypoint):
+    def drive_to_point(self, waypoint, lms_seen_to_update=1):
         start_pose = self.get_robot_pose()
         turn_time = self.get_turn_time(waypoint)
         drive_time = self.get_drive_time(waypoint)
@@ -231,7 +232,7 @@ class Operate:
         while time.time() <= turn_time:
             self.take_pic()
             drive_meas = self.control()
-            self.update_slam(drive_meas, print_period = 0.2)
+            self.update_slam(drive_meas, lms_seen_to_update, print_period = 0.2)
         self.stop()
 
         # Set drive velocity
@@ -241,7 +242,7 @@ class Operate:
         while time.time() <= drive_time:
             self.take_pic()
             drive_meas = self.control()
-            self.update_slam(drive_meas, print_period = 0)
+            self.update_slam(drive_meas, lms_seen_to_update, print_period = 0)
             # Prevent passing the distance, resulting in TURNING OVER
             if self.reach_close_point(self.get_robot_pose()[:2], waypoint, threshold=0.05):
                 break
