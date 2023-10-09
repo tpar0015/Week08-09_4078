@@ -7,9 +7,9 @@ import json
 import argparse
 import time
 import w8HelperFunc as w8
-from Prac4_Support.Obstacle import *
-from Prac4_Support.math_functions import *
-import navigate_algo as navi
+from util.Prac4_Support.Obstacle import *
+from util.Prac4_Support.math_functions import *
+import util.navigate_algo as navi
 
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
