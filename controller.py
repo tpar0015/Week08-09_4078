@@ -1,11 +1,12 @@
 # Description: This file contains the controller class for the robot.
 import time
 import numpy as np
-from slam.ekf import EKF
-from slam.robot import Robot
+from slam_rehaul.ekf_rewrite import EKF
+from slam_rehaul.robot import Robot
+import slam_rehaul.aruco_detector as aruco
 from util.pibot import PenguinPi
 import util.measure as measure
-from util.gui import GUI
+from gui import GUI
 class RobotControl:
     def __init__(self, args):
         ## Robot Parameters
@@ -19,6 +20,9 @@ class RobotControl:
         self.pibot = PenguinPi(args.ip, args.port)
         self.scale = self.ekf.robot.wheels_scale 
         self.baseline = self.ekf.robot.wheels_width
+        self.aruco_det = aruco.aruco_detector(self.ekf.robot, marker_length=0.07)  # size of the ARUCO markers
+        self.img = np.zeros([240,320,3], dtype=np.uint8)
+        self.aruco_img = np.zeros([240,320,3], dtype=np.uint8)
 
     def init_ekf(self, datadir, ip):
         fileK = "{}intrinsic.txt".format(datadir)
@@ -66,8 +70,9 @@ class RobotControl:
         distance_threshold = 0.05 # 5 cm
 
         dist_diff, ang_diff = self.pose_difference(end_pose)
-
-        while (dist_diff < distance_threshold and not turn_flag) or (ang_diff < angle_threshold and turn_flag):
+        print(dist_diff, ang_diff)
+        print(turn_flag)
+        while (dist_diff > distance_threshold and not turn_flag) or (ang_diff > angle_threshold and turn_flag):
             # Drive
             lv, rv = self.pibot.set_velocity([0 + 1*(not turn_flag), 1*turn_flag])
             drive_meas = measure.Drive(lv, -rv, dt)
@@ -77,7 +82,8 @@ class RobotControl:
             # self.update_gui() 
             # Update loop conditions
             dist_diff, ang_diff = self.pose_difference(end_pose)
-
+    def stop_driving(self):
+        self.pibot.set_velocity([0,0])
     def generate_maps(self):
         """Drive around to generate a map of the aruco markers."""
         # SLAM Map
@@ -92,9 +98,13 @@ class RobotControl:
         pass
     
     def localize(self, drive_meas):
+        lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
         # Update Slam
         self.ekf.predict(drive_meas)
-        self.ekf.update(drive_meas)
+        for lm in lms:
+            if lm.tag not in range(1,11):
+                lms.remove(lm)
+        self.ekf.update(lms)
         self.set_pose()
         
 
@@ -132,4 +142,8 @@ if __name__ == "__main__":
 
     args, _ = parser.parse_known_args()
     robot = RobotControl(args)
-    robot.drive_to_point([1,1,0])
+    try:
+        robot.drive_to_point([1,1,0])
+    except Exception as e:
+        print(e)
+        robot.stop_driving()
