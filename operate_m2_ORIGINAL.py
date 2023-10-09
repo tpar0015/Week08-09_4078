@@ -39,7 +39,7 @@ class Operate:
             self.pibot = PenguinPi(args.ip, args.port)
 
         # initialise SLAM parameters
-        self.ekf = self.init_ekf(args.calib_dir, args.ip, args.map)
+        self.ekf = self.init_ekf(args.calib_dir, args.ip)
         self.aruco_det = aruco.aruco_detector(
             self.ekf.robot, marker_length = 0.07) # size of the ARUCO markers
 
@@ -99,22 +99,17 @@ class Operate:
     def update_slam(self, drive_meas):
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
         if self.request_recover_robot:
-            pass
-            # is_success = self.ekf.recover_from_pause(lms)
-            # if is_success:
-            #     self.notification = 'Robot pose is successfuly recovered'
-            #     self.ekf_on = True
-            # else:
-            #     self.notification = 'Recover failed, need >2 landmarks!'
-            #     self.ekf_on = False
-            # self.request_recover_robot = False
+            is_success = self.ekf.recover_from_pause(lms)
+            if is_success:
+                self.notification = 'Robot pose is successfuly recovered'
+                self.ekf_on = True
+            else:
+                self.notification = 'Recover failed, need >2 landmarks!'
+                self.ekf_on = False
+            self.request_recover_robot = False
         elif self.ekf_on: # and not self.debug_flag:
             self.ekf.predict(drive_meas)
-            # self.ekf.add_landmarks(lms) # <------------------------------
-            for lm in lms:
-                if lm not in range(1, 11):
-                    lms.remove(lm)
-                    
+            self.ekf.add_landmarks(lms) # <------------------------------
             self.ekf.update(lms)
 
     # save images taken by the camera
@@ -132,7 +127,7 @@ class Operate:
     ##########################################################################################
     ''' Added aruco_np_array to test'''
 
-    def init_ekf(self, datadir, ip, map_name):
+    def init_ekf(self, datadir, ip):
         fileK = "{}intrinsic.txt".format(datadir)
         camera_matrix = np.loadtxt(fileK, delimiter=',')
         fileD = "{}distCoeffs.txt".format(datadir)
@@ -246,29 +241,28 @@ class Operate:
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 self.ekf_on = True
                 '''BL: Added know map'''
-                fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
-                self.ekf.init_landmarks(aruco_true_pos)
+                # fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
+                # self.ekf.init_landmarks(aruco_true_pos)
 
-                # n_observed_markers = len(self.ekf.taglist)
-                # if n_observed_markers == 0:
-                #     if not self.ekf_on:
-                #         self.notification = 'SLAM is running'
-                #         self.ekf_on = True
-                #     else:
-                #         self.notification = '> 2 landmarks is required for pausing'
+                n_observed_markers = len(self.ekf.taglist)
+                if n_observed_markers == 0:
+                    if not self.ekf_on:
+                        self.notification = 'SLAM is running'
+                        self.ekf_on = True
+                    else:
+                        self.notification = '> 2 landmarks is required for pausing'
                 
-                #     ''' BL changed this '''
-                # elif n_observed_markers < 2:
-                #     self.notification = '> 2 landmarks is required for pausing'
-                # else:
-                #     if not self.ekf_on:
-                #         self.request_recover_robot = True
-                #     self.ekf_on = not self.ekf_on
-                #     if self.ekf_on:
-                #         self.notification = 'SLAM is running'
-                #     else:
-                #         self.notification = 'SLAM is paused'
-            # quit
+                    ''' BL changed this '''
+                elif n_observed_markers < 2:
+                    self.notification = '> 2 landmarks is required for pausing'
+                else:
+                    if not self.ekf_on:
+                        self.request_recover_robot = True
+                    self.ekf_on = not self.ekf_on
+                    if self.ekf_on:
+                        self.notification = 'SLAM is running'
+                    else:
+                        self.notification = 'SLAM is paused'
             elif event.type == pygame.QUIT:
                 self.quit = True
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -277,44 +271,6 @@ class Operate:
             pygame.quit()
             sys.exit()
 
-
-def read_true_map(fname):
-    """Read the ground truth map and output the pose of the ArUco markers and 5 target fruits&vegs to search for
-
-    @param fname: filename of the map
-    @return:
-        1) list of targets, e.g. ['lemon', 'tomato', 'garlic']
-        2) locations of the targets, [[x1, y1], ..... [xn, yn]]
-        3) locations of ArUco markers in order, i.e. pos[9, :] = position of the aruco10_0 marker
-    """
-    print(fname)
-    with open(fname, 'r') as fd:
-        gt_dict = json.load(fd)
-        fruit_list = []
-        fruit_true_pos = []
-        aruco_true_pos = np.empty([10, 2])
-
-        # remove unique id of targets of the same type
-        for key in gt_dict:
-            x = np.round(gt_dict[key]['x'], 1)
-            y = np.round(gt_dict[key]['y'], 1)
-
-            if key.startswith('aruco'):
-                if key.startswith('aruco10'):
-                    aruco_true_pos[9][0] = x
-                    aruco_true_pos[9][1] = y
-                else:
-                    marker_id = int(key[5]) - 1
-                    aruco_true_pos[marker_id][0] = x
-                    aruco_true_pos[marker_id][1] = y
-            else:
-                fruit_list.append(key[:-2])
-                if len(fruit_true_pos) == 0:
-                    fruit_true_pos = np.array([[x, y]])
-                else:
-                    fruit_true_pos = np.append(fruit_true_pos, [[x, y]], axis=0)
-
-        return fruit_list, fruit_true_pos, aruco_true_pos
         
 if __name__ == "__main__":
     import argparse
@@ -325,7 +281,6 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--map", type=str, default='M4_slam_test.txt')
 
     args, _ = parser.parse_known_args()
     
@@ -368,17 +323,12 @@ if __name__ == "__main__":
         operate.take_pic()
         drive_meas = operate.control()
         operate.update_slam(drive_meas)
-        # operate.record_data()
-        # operate.save_image()
-
-        if abs(operate.ekf.robot.state[0:3, 0][-1]) == 360:
-            input("Enter to reset SLAM")
-
-
+        operate.record_data()
+        operate.save_image()
         #############################################3
         # visualise
-        # operate.draw(canvas)
-        # pygame.display.update()
+        operate.draw(canvas)
+        pygame.display.update()
 
 
 
