@@ -71,7 +71,7 @@ try:
         arena.add_aruco_markers()
         arena.add_fruits_as_obstacles()
         arena.get_targets()
-        arena.draw_arena(draw_path=True)
+        # arena.draw_arena(draw_path=True)
         path = arena.get_path_xy()
         
     if path_navi: 
@@ -150,10 +150,12 @@ try:
         
         operate.prompt_start_slam(aruco_true_pos)
 
-        for fruit, path in waypoint.items():
-            # Ignore first waypoint
-            for waypoint in path[1:]:
-
+        # for fruit, path in waypoint.items():
+        #     # Ignore first waypoint
+        #     for waypoint in path[1:]:
+        for one_path in path:
+            for waypoint in one_path:
+                waypoint = waypoint * 0.001 # Convert to m
                 # if operate.ekf_on:
                     # cur_pose = operate.get_robot_pose()
                     # end_pose = operate.get_end_pose(cur_pose, waypoint)
@@ -187,7 +189,8 @@ try:
             ###########################################################
             shopping_time = 3
             print_period = 0.5
-            print(f"Reach {fruit}, wait for {shopping_time}s\n\n\n")
+            # print(f"Reach {fruit}, wait for {shopping_time}s\n\n\n")
+            print("Reached Fruit")
             cur_time = time.time()
             while time.time() - cur_time < shopping_time:
                 print_time = time.time()
