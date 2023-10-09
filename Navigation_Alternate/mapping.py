@@ -147,13 +147,10 @@ class Map:
         Updates path to avoid any new obstacles
         """
         end_node = self.G.get_nearest_node(waypoint[:2])
-        print("Start Node xy: ", start_node.xy)
         if end_node is not None:
             self.G.djikstras(start_node, end_node)
             _, path = self.G.get_shortest_distance(end_node)
-            if len(self.path) > 0:
-                # Insert start node as first node in path
-                path.insert(0,start_node.name)
+            path.insert(0,start_node.name)
             self.path.append(path)
         else:
             print("Cant find waypoint.")
@@ -193,8 +190,6 @@ class Map:
         """
         
         for corner in self.obstacle_corners:
-            if corner[0][1] > -750:
-                print(corner)
             if self.line_intersect(A.xy, B.xy, corner[0], corner[1]) or self.line_intersect(A.xy, B.xy, corner[0], corner[2]) or self.line_intersect(A.xy, B.xy, corner[1], corner[3]) or self.line_intersect(A.xy, B.xy, corner[2], corner[3]):
                 return False
         return True
@@ -203,13 +198,14 @@ class Map:
         """
         Shortens path by removing nodes that are not needed.
         """
+        threshold_distance = 200
         start_node = self.G[eval(path[0])]
         i = 1
         while i < len(path) - 1:
             current_node = self.G[eval(path[i])]
             
             # Check if line between start and current node is obstacle free
-            if self.line_obstacle_free(start_node, current_node):
+            if self.line_obstacle_free(start_node, current_node) and self.G.distance(start_node.xy, current_node.xy) < threshold_distance:
                 path.pop(i)
 
             else:
@@ -225,7 +221,6 @@ class Map:
         for i in range(len(fruit_coords)):
             x, y = fruit_coords[i] 
             target_fruit = (x*1000, y*1000)
-            print(target_fruit)
             if i == 0:
                 self.update_path(self.G.get_nearest_node(self.location[:2]), target_fruit)
             else:
@@ -316,7 +311,6 @@ class Map:
                 else:
                     edge_colors.append("black")
                     edge_width.append(1)
-            print(path_edges)
         else:
             edge_colors = ["black" for _ in G_img.edges]
             edge_width = [1 for _ in G_img.edges]
@@ -335,7 +329,7 @@ class Map:
 
 
 if __name__ == '__main__':
-    map_test = Map((3000, 3000), 50, true_map="map/M4_prac_map_full.txt", shopping_list="M4_prac_shopping_list.txt")
+    map_test = Map((3000, 3000), 50, true_map="map/nhnh_Mon_v1.txt", shopping_list="M5_shopping_list.txt")
     map_test.generate_map()
     map_test.add_aruco_markers()
     map_test.add_fruits_as_obstacles()
