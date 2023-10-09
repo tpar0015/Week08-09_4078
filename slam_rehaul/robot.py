@@ -31,6 +31,13 @@ class Robot:
             self.state[1] += -linear_velocity / angular_velocity * (np.cos(th+dt*angular_velocity) - np.cos(th))
             self.state[2] += dt*angular_velocity
 
+        #Clip theta
+        if (self.state[2] > 2*np.pi):
+            self.state[2] = self.state[2] - 2*np.pi
+        elif (self.state[2] < -2*np.pi):
+            self.state[2] = self.state[2] + 2*np.pi
+
+
     def measure(self, markers, idx_list):
         # Markers are 2d landmarks in a 2xn structure where there are n landmarks.
         # The index list tells the function which landmarks to measure in order.
@@ -64,7 +71,6 @@ class Robot:
 
     # Derivatives and Covariance
     # --------------------------
-
     def derivative_drive(self, drive_meas):
         # Compute the differential of drive w.r.t. the robot state
         DFx = np.zeros((3,3))

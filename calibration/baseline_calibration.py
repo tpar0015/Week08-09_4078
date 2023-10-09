@@ -18,7 +18,7 @@ def calibrateBaseline():
     ##########################################
     # Feel free to change the range / step
     ##########################################
-    wheel_velocities_range = range(30, 60, 10)
+    wheel_velocities_range = range(10, 50, 10)
     delta_times = []
     angle_caliration = np.pi
     angle_caliration_deg = np.rad2deg(angle_caliration)
@@ -42,7 +42,7 @@ def calibrateBaseline():
             uInput = input(f"Did the robot spin {angle_caliration_deg} deg?[y/N]")
             if uInput == 'y':
                 delta_times.append(delta_time)
-                print(f"Recording that the robot spun {angle_caliration_deg} deg" / 
+                print(f"Recording that the robot spun {angle_caliration_deg} deg" + 
                       "in {delta_time:.2f} seconds at wheel speed {wheel_vel}.\n")
                 break
 

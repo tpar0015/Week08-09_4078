@@ -10,6 +10,7 @@ import math
 import pygame
 
 import pandas as pd
+import time
 
 '''
 Summarise from textbook chap 6 - localisation
@@ -77,6 +78,8 @@ class EKF:
         self.v = []
         # keep track of NIS, Normalized Innovation Squared
         self.nis = []
+        self.print_clock = time.time()
+        self.print_flag = False
 
         ### chi-squared Distribution <-------------------- *Question*
         ## would require scipy
@@ -90,8 +93,8 @@ class EKF:
     # Tune your SLAM algorithm here
     ##########################################
     # From lecture note / slides:
-    # - F     : Jacobian of model
-    # - Q     : Covariance of model
+    # - F     : Jacobian of model       (size 3x3)
+    # - Q     : Covariance of model     
     # - P     : Covariance of state (including model and landmarks)
     # 
     # - z     : measurement --> return landmark position
@@ -112,19 +115,26 @@ class EKF:
     Description:
         - This use the raw_drive_meas to drive, manual set pose, and update state covar
     '''
-    def predict(self, raw_drive_meas):
-        
+    def predict(self, raw_drive_meas, print_period = False):
+
         # Jacobian of the model --> linearisation
         F = self.state_transition(raw_drive_meas)
 
         # Model COVAR
         Q = self.predict_covariance(raw_drive_meas)
 
-        # Drive and update the state!
+        # Drive and update the state - "manually set pose"
         self.robot.drive(raw_drive_meas)
 
         # State COVAR
         self.P = F @ self.P @ F.T + Q
+
+        # Print every 2s
+        if (time.time() - self.print_clock >= print_period) and print_period :
+            # input("2s passed, enter to continue")
+            self.print_clock = time.time()
+            self.print_flag  = True
+            print(f"Predict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
 
     '''
     Input:
@@ -143,7 +153,7 @@ class EKF:
         - Added map lock by Christopher
         - Added logging by Christopher
     '''
-    def update(self, measurements):
+    def update(self, measurements, print_period = False):
         if not measurements:
             return
 
@@ -163,8 +173,7 @@ class EKF:
             # x2  -   -   s2  -   - 
             # y2  -   -   -   s2  - 
             # x3  -   -   -   -   s3 
-            R[2*i:2*i+2, 2*i:2*i+2] = measurements[i].covariance # return from ARUCO_DET() <------ *Question*
-        # Is this H_w W^ H_w^T? <---------------- *Question*
+            R[2*i:2*i+2, 2*i:2*i+2] = measurements[i].covariance # return from ARUCO_DET()
 
         
         # Measurement
@@ -194,10 +203,8 @@ class EKF:
                         # robots pose, which we do want to update
         mask = mask.squeeze()
 
-        # print(mask)
-        # print(K)
-        # input("Enter to continue")
-    
+        # measurement_update_weight = 0.2
+
         '''Correct State'''
         if self.lock_map:
             # Only update robot pose
@@ -207,17 +214,23 @@ class EKF:
             x = x + K @ (z - z_hat)
 
         ''' Update '''
+        #Clip theta
+        if (x[2] > 2*np.pi):
+            x[2] = x[2] - 2*np.pi
+        elif (x[2] < -2*np.pi):
+            x[2] = x[2] + 2*np.pi
         self.set_state_vector(x)
         
         # State COVAR
         P = (np.eye(x.shape[0]) - K @ H) @ self.P
         self.P = P 
-
         # self.P = P + 0.01*np.eye(self.state_num)       # <------------------ *Question* 0.01 is a tuning parameter
         
-        print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
 
-
+        if self.print_flag and print_period:
+            # input("2s passed, enter to continue")
+            self.print_flag = False
+            print(f"~~Update: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
         ## ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         ## logging/monitoring
         
@@ -241,8 +254,9 @@ class EKF:
         """Predicts covariance of the state after a drive command? """
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
-        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.01*np.eye(3)
+        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas) + 0.01*np.eye(3)
         # tune for better? 1cm uncertainty for the state [x, y, theta]
+        # Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)
 
         return Q
 

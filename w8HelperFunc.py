@@ -87,8 +87,14 @@ def get_path(target_fruit_list, target_fruit_pos, obstacles, initial_robot_pos =
             # Get interconnect goal pos
             interconnect_goal_pos = target_fruit_pos[fruit_idx]
             # Create circle
-            num_vertices = 36
-            interconnect_goal = Circle(c_x=interconnect_goal_pos[0], c_y=interconnect_goal_pos[1], radius=goal_tolerance, num_vertices=num_vertices)
+            '''BL - need better upgrade, use this for now :(
+            ==> compute the number of vertice so that arc length ~ robot_step_size
+            '''
+            goal_circle_radius = goal_tolerance
+            tmp = np.arcsin(robot_step_size * 0.5 / goal_circle_radius)
+            angle_each_verctice = 2 * tmp
+            num_vertices = int(np.round(2*np.pi / angle_each_verctice) / 2)
+            interconnect_goal = Circle(c_x=interconnect_goal_pos[0], c_y=interconnect_goal_pos[1], radius=goal_circle_radius, num_vertices=num_vertices)
             ###############################################
             # Get path of current fruit
             path = waypoint[fruit]
@@ -118,7 +124,6 @@ def get_path(target_fruit_list, target_fruit_pos, obstacles, initial_robot_pos =
             waypoint[target_fruit_list[fruit_idx+1]] = next_path
             waypoint[fruit] = np.append(path, wrap_path, axis = 0)
         
-
     return waypoint, step_list
 
 
@@ -255,11 +260,13 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     fruit_coor = []
 
     print("Search order:")
+    print(search_list)
+    print(fruit_list)
     n_fruit = 1
+    print(search_list)
     for fruit in search_list:
         for i in range(len(fruit_list)): # there are 5 targets amongst 10 objects
             if fruit == fruit_list[i]:
-
                 ''' #BL: added return coordinations of fruits'''
                 x_pos = np.round(fruit_true_pos[i][0], 2)
                 y_pos = np.round(fruit_true_pos[i][1], 2)
@@ -268,6 +275,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
                                                     fruit,
                                                     x_pos,
                                                     y_pos))
+                
         n_fruit += 1
 
     ''' #BL: added return coordinations of fruits'''
