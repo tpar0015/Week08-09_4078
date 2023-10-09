@@ -223,9 +223,7 @@ class EKF:
         
         # State COVAR
         P = (np.eye(x.shape[0]) - K @ H) @ self.P
-        self.P = P 
-        # self.P = P + 0.01*np.eye(self.state_num)       # <------------------ *Question* 0.01 is a tuning parameter
-        
+        self.P = P
 
         if self.print_flag and print_period:
             # input("2s passed, enter to continue")

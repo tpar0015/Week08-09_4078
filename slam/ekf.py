@@ -1,15 +1,8 @@
-# Version 3
-# Modified by Bill
-# 9pm - Oct 2
-
 import numpy as np
-from slam.mapping_utils import MappingUtils
+from mapping_utils import MappingUtils
 import cv2
 import math
 import pygame
-
-import json
-import pandas as pd
 
 class EKF:
     # Implementation of an EKF for SLAM
@@ -21,21 +14,14 @@ class EKF:
     ##########################################
 
     def __init__(self, robot):
-        self.lock_map = True
         # State components
         self.robot = robot
         self.markers = np.zeros((2,0))
         self.taglist = []
 
         # Covariance matrix
-        #self.P = np.zeros((3,3))
-
-        self.state_num = 23     # set manually for now, this include robot pose and arcuo pose
-
-        self.P = np.eye(self.state_num)*1e3
-
+        self.P = np.zeros((3,3))
         self.init_lm_cov = 1e3
-
         self.robot_init_state = None
         self.lm_pics = []
         for i in range(1, 11):
@@ -44,26 +30,13 @@ class EKF:
         f_ = f'./pics/8bit/lm_unknown.png'
         self.lm_pics.append(pygame.image.load(f_))
         self.pibot_pic = pygame.image.load(f'./pics/8bit/pibot_top.png')
-
-        ######################
-        ######################
-        ## setup logs to be used for monitoring and in algoritms
-        # 1. keep track and calculate the Innovation
-        # v = z - z_hat
-        self.v = []
-        ## keep track of NIS, Normalized Innovation Squared
-        self.nis = []
-
-        ### chi-squared Distribution
-        ## would require scipy
-
+        
     def reset(self):
         self.robot.state = np.zeros((3, 1))
         self.markers = np.zeros((2,0))
         self.taglist = []
         # Covariance matrix
-        #self.P = np.zeros((3,3))
-        self.P = np.eye(self.state_num)*1e3
+        self.P = np.zeros((3,3))
         self.init_lm_cov = 1e3
         self.robot_init_state = None
 
@@ -79,7 +52,6 @@ class EKF:
         self.robot.state = state[0:3,:]
         self.markers = np.reshape(state[3:,:], (2,-1), order='F')
     
-
     def save_map(self, fname="slam_map.txt"):
         if self.number_landmarks() > 0:
             utils = MappingUtils(self.markers, self.P[3:,3:], self.taglist)
@@ -118,23 +90,18 @@ class EKF:
         F = self.state_transition(raw_drive_meas)
         x = self.get_state_vector()
 
+        # TODO: add your codes here to complete the prediction step
+        # From github: 
+        # you should actually be computing P, the predicted state ...
         Q = self.predict_covariance(raw_drive_meas)
 
         self.robot.drive(raw_drive_meas)
         
-        '''BL: Print out the state continously here'''
-        # check shape of F and P
-        # print(f"F shape: {F.shape}")
-        # print(f"P shape: {self.P.shape}")
-
         self.P = F @ self.P @ F.T + Q
         
-        # print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2]) % 360}")
-        # print(f"EKF state: {self.robot.state[0]} - {self.robot.state[1]} - {self.robot.state[2]}")
+        print(f"Predict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
 
 
-
-    # --- DEBUG --- cur_pose before SLAM: [ 0.14000184 -0.05384686 -0.36717383]
 
     # the update step of EKF
     def update(self, measurements):
@@ -149,8 +116,7 @@ class EKF:
         z = np.concatenate([lm.position.reshape(-1,1) for lm in measurements], axis=0)
         R = np.zeros((2*len(measurements),2*len(measurements)))
         for i in range(len(measurements)):
-            # stack x and y --> index * 2
-            R[2*i:2*i+2, 2*i:2*i+2] = measurements[i].covariance
+            R[2*i:2*i+2,2*i:2*i+2] = measurements[i].covariance
 
         # Compute own measurements
         z_hat = self.robot.measure(self.markers, idx_list)
@@ -159,56 +125,19 @@ class EKF:
 
         x = self.get_state_vector()
 
+        # TODO: add your codes here to compute the updated x
+        # From github
+        # Take a note of the location of x that should be updated in the motion model.
         S = H @ self.P @ H.T + R
         K = self.P @ H.T @ np.linalg.inv(S)
 
-        ############
-        ## freeze the position of the landmarks!
-        ## this will need to be met with real life tuning
-        ## of the covariance values given to the markers
-
-        ## create mask to be used across x and K
-        mask = np.zeros_like(x, dtype=bool)
-        mask[:3] = True # this represents the three elements of the 
-                        # robots pose, which we do want to update
-        
-        mask = mask.squeeze()
-
-        # print(mask)
-        # print(K)
-        # input("Enter to continue")
         # correct state
-        if self.lock_map:
-            x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
-        else:
-            ''' The original code where x is updated based on measurement'''
-            x = x + K @ (z - z_hat)
-
-        ## logging/monitoring
-        # innovation
-        innovation = z - z_hat
-        self.v.append(innovation)
-
-        ############
-        P = (np.eye(x.shape[0]) - K @ H) @ self.P
+        x = x + K @ (z - z_hat)
+        P = (np.eye(self.P.shape[0]) - K @ H) @ self.P
         # update
-        self.P = P + 0.01*np.eye(self.state_num)
+        self.set_state_vector(x)
+        self.P = P
 
-        ######################
-        ### monitoring functions
-        ### Normalized Innovation Squared
-        S_inv = np.linalg.inv(S)
-        NIS = np.dot(np.dot(innovation.T, S_inv), innovation)
-
-        self.nis.append(NIS)
-
-        ''' BL: return state instead of update straight into robot.state'''
-        # self.set_state_vector(x)
-            # self.robot.state = state[0:3,:]
-            # self.markers = np.reshape(state[3:,:], (2,-1), order='F')
-        
-        return x[0:3,:]
-    
 
     def state_transition(self, raw_drive_meas):
         n = self.number_landmarks()*2 + 3
@@ -220,44 +149,40 @@ class EKF:
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
         Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.01*np.eye(3)
-        # tune for better? 1cm uncertainty for the state [x, y, theta]
-
         return Q
 
-    def init_landmarks(self, aruco_np_array):
-        # The input aruco_np_array is a numpy array of shape (10,2)
-        
-        self.markers = aruco_np_array.T
-        
-        taglist_num = aruco_np_array.shape[0]
-        self.taglist = [i for i in range(1, taglist_num+1)]
-        
+    def add_landmarks(self, measurements):
+        if not measurements:
+            return
 
-    # def add_landmarks(self, measurements):
-    #     if not measurements:
-    #         return
+        th = self.robot.state[2]
+        robot_xy = self.robot.state[0:2,:]
+        R_theta = np.block([[np.cos(th), -np.sin(th)],[np.sin(th), np.cos(th)]])
 
-    #     th = self.robot.state[2]
-    #     robot_xy = self.robot.state[0:2,:]
-    #     R_theta = np.block([[np.cos(th), -np.sin(th)],[np.sin(th), np.cos(th)]])
-
-    #     # Add new landmarks to the state
-    #     for lm in measurements:
-    #         if lm.tag in self.taglist:
-    #             # ignore known tags
-    #             continue
+        # Add new landmarks to the state
+        for lm in measurements:
+            if lm.tag in self.taglist:
+                # ignore known tags
+                continue
             
-    #         lm_bff = lm.position
-    #         lm_inertial = robot_xy + R_theta @ lm_bff
+            lm_bff = lm.position
+            lm_inertial = robot_xy + R_theta @ lm_bff
 
-    #         self.taglist.append(int(lm.tag))
-    #         self.markers = np.concatenate((self.markers, lm_inertial), axis=1)
+            self.taglist.append(int(lm.tag))
+            self.markers = np.concatenate((self.markers, lm_inertial), axis=1)
 
-    #         # Create a simple, large covariance to be fixed by the update step
-    #         self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
-    #         self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
-    #         self.P[-2,-2] = self.init_lm_cov**2
-    #         self.P[-1,-1] = self.init_lm_cov**2
+            # Create a simple, large covariance to be fixed by the update step
+            self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
+            self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
+            self.P[-2,-2] = self.init_lm_cov**2
+            self.P[-1,-1] = self.init_lm_cov**2
+
+        # Validate
+        print("_____________________")
+        print(self.markers)
+        print("################")
+        print(self.taglist)
+        print("_____________________\n\n")
 
     ##########################################
     ##########################################
@@ -301,7 +226,6 @@ class EKF:
     # ------------------
     @ staticmethod
     def to_im_coor(xy, res, m2pixel):
-    
         w, h = res
         x, y = xy
         x_im = int(-x*m2pixel+w/2.0)
@@ -314,8 +238,7 @@ class EKF:
         if not_pause:
             bg_rgb = np.array([213, 213, 213]).reshape(1, 1, 3)
         else:
-            bg_rgb = np.array([119, 120, 120]).reshape(1, 1, 3)
-            
+            bg_rgb = np.array([120, 120, 120]).reshape(1, 1, 3)
         canvas = np.ones((res[1], res[0], 3))*bg_rgb.astype(np.uint8)
         # in meters, 
         lms_xy = self.markers[:2, :]
@@ -337,12 +260,11 @@ class EKF:
                 xy = (lms_xy[0, i], lms_xy[1, i])
                 coor_ = self.to_im_coor(xy, res, m2pixel)
                 # plot covariance
-                '''BL change here'''
-                # Plmi = self.P[3+2*i:3+2*(i+1),3+2*i:3+2*(i+1)]
-                # axes_len, angle = self.make_ellipse(Plmi)
-                # canvas = cv2.ellipse(canvas, coor_, 
-                #     (int(axes_len[0]*m2pixel), int(axes_len[1]*m2pixel)),
-                #     angle, 0, 360, (244, 69, 96), 1)
+                Plmi = self.P[3+2*i:3+2*(i+1),3+2*i:3+2*(i+1)]
+                axes_len, angle = self.make_ellipse(Plmi)
+                canvas = cv2.ellipse(canvas, coor_, 
+                    (int(axes_len[0]*m2pixel), int(axes_len[1]*m2pixel)),
+                    angle, 0, 360, (244, 69, 96), 1)
 
         surface = pygame.surfarray.make_surface(np.rot90(canvas))
         surface = pygame.transform.flip(surface, True, False)

@@ -1,4 +1,4 @@
-from util.Prac4_Support.Obstacle import *
+from Prac4_Support.Obstacle import *
 # from Prac4_Support.path_animation import *
 from shapely import geometry
 
@@ -41,10 +41,10 @@ def bug2_algorithm(goal_pos, initial_robot_pos, robot_step_size, obstacles, ccw,
                 robot_path.append(next_robot_pos)
                 
                 counter += 1
-                if counter > terminate_step:
-                    print(f"Terminating this path using ccw {ccw}")
-                    flag = 1
-                    break
+                # if counter > terminate_step:
+                #     print(f"Terminating this path using ccw {ccw}")
+                #     flag = 1
+                #     break
 
                 # Stop getting around obstacle when:
                 # * We are back to the original line
@@ -57,64 +57,68 @@ def bug2_algorithm(goal_pos, initial_robot_pos, robot_step_size, obstacles, ccw,
                 if stop_getting_around:
                     break
 
-        if flag == 1:
-            break
+        # if flag == 1:
+        #     break
 
         # Update current state and add to path
         current_robot_pos = next_robot_pos
         robot_path.append(current_robot_pos)
     
-    if flag == 0:
-        path = np.array(robot_path)
-        return path
+    # if flag == 0:
+    #     path = np.array(robot_path)
+    #     return path
     
-    # Do it again :( but in the other direction
-    robot_path = [initial_robot_pos]
-    current_robot_pos = initial_robot_pos
-    robot_to_goal_line = compute_line_through_points(current_robot_pos, goal_pos)
-
-    print(f"Try again using ccw {not ccw}")
-
-    # While goal not reached
-    while not has_reached_goal(current_robot_pos, goal_pos, robot_step_size, tolerance):
-
-        # Move towards goal
-        next_robot_pos = move_towards_goal(current_robot_pos, robot_to_goal_line, goal_pos, initial_robot_pos, robot_step_size)
-        if is_about_to_hit_obstacle(next_robot_pos, obstacles, robot_step_size, ccw):
-
-            # Go back to current position
-            next_robot_pos = np.copy(current_robot_pos)
-            # Compute distance from hit point to goal
-            hit_dist_to_goal = compute_distance_between_points(current_robot_pos, goal_pos)
-            while True:
-                # Find nearest_obstacle and start navigating around 
-                closest_obs, (closest_obs_distance, obst_segment) = find_closest_obstacle(next_robot_pos,
-                                                                                        obstacles, ccw)
-                # Get direction along obstacle
-                direction_around_obstacle = closest_obs.compute_tangent_vector_to_polygon(next_robot_pos, 
-                                                                                        obst_segment)
-                # Move along obstacle
-                next_robot_pos = next_robot_pos + robot_step_size * direction_around_obstacle
-                    
-                robot_path.append(next_robot_pos)
-
-                # Stop getting around obstacle when:
-                # * We are back to the original line
-                # * We are closer to the goal than when we started getting around obstacle.
-                # * Segment_not_line=True meaning the robot will only stop getting around the obstacle
-                #   when it hits the segment again, not the extended segment (a line).
-                stop_getting_around = go_back_to_goal(next_robot_pos, goal_pos, initial_robot_pos, robot_to_goal_line,
-                                                        hit_dist_to_goal, robot_step_size, segment_not_line=False)
-
-                if stop_getting_around:
-                    break
-
-        # Update current state and add to path
-        current_robot_pos = next_robot_pos
-        robot_path.append(current_robot_pos)
-        
+    
     path = np.array(robot_path)
     return path
+
+    # # Do it again :( but in the other direction
+    # robot_path = [initial_robot_pos]
+    # current_robot_pos = initial_robot_pos
+    # robot_to_goal_line = compute_line_through_points(current_robot_pos, goal_pos)
+
+    # print(f"Try again using ccw {not ccw}")
+
+    # # While goal not reached
+    # while not has_reached_goal(current_robot_pos, goal_pos, robot_step_size, tolerance):
+
+    #     # Move towards goal
+    #     next_robot_pos = move_towards_goal(current_robot_pos, robot_to_goal_line, goal_pos, initial_robot_pos, robot_step_size)
+    #     if is_about_to_hit_obstacle(next_robot_pos, obstacles, robot_step_size, ccw):
+
+    #         # Go back to current position
+    #         next_robot_pos = np.copy(current_robot_pos)
+    #         # Compute distance from hit point to goal
+    #         hit_dist_to_goal = compute_distance_between_points(current_robot_pos, goal_pos)
+    #         while True:
+    #             # Find nearest_obstacle and start navigating around 
+    #             closest_obs, (closest_obs_distance, obst_segment) = find_closest_obstacle(next_robot_pos,
+    #                                                                                     obstacles, ccw)
+    #             # Get direction along obstacle
+    #             direction_around_obstacle = closest_obs.compute_tangent_vector_to_polygon(next_robot_pos, 
+    #                                                                                     obst_segment)
+    #             # Move along obstacle
+    #             next_robot_pos = next_robot_pos + robot_step_size * direction_around_obstacle
+                    
+    #             robot_path.append(next_robot_pos)
+
+    #             # Stop getting around obstacle when:
+    #             # * We are back to the original line
+    #             # * We are closer to the goal than when we started getting around obstacle.
+    #             # * Segment_not_line=True meaning the robot will only stop getting around the obstacle
+    #             #   when it hits the segment again, not the extended segment (a line).
+    #             stop_getting_around = go_back_to_goal(next_robot_pos, goal_pos, initial_robot_pos, robot_to_goal_line,
+    #                                                     hit_dist_to_goal, robot_step_size, segment_not_line=False)
+
+    #             if stop_getting_around:
+    #                 break
+
+    #     # Update current state and add to path
+    #     current_robot_pos = next_robot_pos
+    #     robot_path.append(current_robot_pos)
+        
+    # path = np.array(robot_path)
+    # return path
 
 ####################################################################################
 # Helper functions

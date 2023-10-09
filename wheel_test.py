@@ -21,7 +21,7 @@ class WheelTest:
 
         self.ppi = PenguinPi(args.ip,args.port)
 
-    def testDrive(self, ticks=20, dist=1):
+    def testDrive(self, ticks=30, dist=1):
         self.drive_setpoint.append(dist)
         dt = dist/(ticks*self.scale)
         print("driving for ", dt)

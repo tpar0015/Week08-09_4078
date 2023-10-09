@@ -61,7 +61,7 @@ class Operate:
         self.quit = False
         self.ekf_on = False
         self.double_reset_comfirm = 0
-        self.notification = '\nPress ENTER to start ... \n'
+        self.notification = '\nPress ENTER to start navigating using SLAM ... \n'
         # Used to computed dt for measure.Drive
         self.control_clock = time.time()
 
@@ -160,6 +160,15 @@ class Operate:
         baseline = np.loadtxt(fileB, delimiter=',')
         robot = Robot(baseline, scale, camera_matrix, dist_coeffs)
         return EKF(robot)
+        
+    def prompt_start_slam(self, aruco_true_pos):
+        # Prompting user to start SLAM
+        if not self.ekf_on:
+            tmp = input(self.notification)
+            # if tmp == "s":
+            self.ekf_on = True
+            self.ekf.init_landmarks(aruco_true_pos)
+
 
 
     '''
@@ -175,13 +184,7 @@ class Operate:
         # print(f"get robot pose {np.rad2deg(theta)}")
         return self.ekf.robot.state[0:3, 0]
 
-    def prompt_start_slam(self, aruco_true_pos):
-        # Prompting user to start SLAM
-        if not self.ekf_on:
-            tmp = input(self.notification)
-            # if tmp == "s":
-            self.ekf_on = True
-            self.ekf.init_landmarks(aruco_true_pos)
+    ####################################################################################
 
     def get_point_angle_relate_world(self, start_pose, end_point):
         angle_to_waypoint = np.arctan2((end_point[1]-start_pose[1]),(end_point[0]-start_pose[0])) # rad
@@ -194,8 +197,6 @@ class Operate:
         else:
             return False
 
-    ####################################################################################
-    # wheel control
     def control(self):    
 
         lv, rv = self.pibot.set_velocity(self.command['motion'])
@@ -226,7 +227,7 @@ class Operate:
         # Turn at spot
         turn_time += time.time()
         self.control_clock = time.time()
-        
+
         while time.time() <= turn_time:
             self.take_pic()
             drive_meas = self.control()

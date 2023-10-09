@@ -7,9 +7,9 @@ import json
 import argparse
 import time
 import w8HelperFunc as w8
-from util.Prac4_Support.Obstacle import *
-from util.Prac4_Support.math_functions import *
-import util.navigate_algo as navi
+from Prac4_Support.Obstacle import *
+from Prac4_Support.math_functions import *
+import navigate_algo as navi
 # import util.w8HelperFunc as w8
 import navigate_algo as navi
 from Prac4_Support.Obstacle import *
@@ -187,7 +187,11 @@ def plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obsta
         plt.plot(target[0], target[1], 'bo')
 
     plt.title("Waypoint path")
-    plt.axis('equal')
+    # plt.axis('equal')
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    fig = plt.gcf()
+    fig.set_size_inches(5, 5)
     plt.show(block=False)
 
 ########################################################################3
@@ -260,10 +264,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     fruit_coor = []
 
     print("Search order:")
-    print(search_list)
-    print(fruit_list)
     n_fruit = 1
-    print(search_list)
     for fruit in search_list:
         for i in range(len(fruit_list)): # there are 5 targets amongst 10 objects
             if fruit == fruit_list[i]:

@@ -47,7 +47,7 @@ parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
 # parser.add_argument("--map", type=str, default='Home_test_map.txt')
 parser.add_argument("--map", type=str, default='map/M4_prac_map_full.txt')
-parser.add_argument("--shop", type=str, default='M4_Lab4_shopping_list.txt')
+parser.add_argument("--shop", type=str, default='M5_Shopping_list.txt')
 
 parser.add_argument("--plot", type=int, default=1)
 args, _ = parser.parse_known_args()
@@ -80,13 +80,31 @@ try:
                                               shape = "rectangle", 
                                               size = 0.35,   # need to account for robot size
                                               )
+        
+        ''' Just for testing'''
+        #  # Plot all the obstacles
+        # for obs in obs_pos:
+        #     plt.plot(obs[0], obs[1], 'bx')  
+        # for obstacle_outline in obstacles:
+        #     plt.plot(obstacle_outline.vertices[:,0], obstacle_outline.vertices[:,1], 'b-', linewidth=0.5)
+        # # Plot all the target fruit
+        # for target in target_fruits_pos:
+        #     plt.plot(target[0], target[1], 'bo')
+
+        # plt.title("Waypoint path")
+        # plt.xlim(-1.5, 1.5)
+        # plt.ylim(-1.5, 1.5)
+        # fig = plt.gcf()
+        # fig.set_size_inches(5, 5)
+        # # plt.axis('equal')
+        # plt.show(block = True)
 
         # #######################################################################################
         print("\n\t- Generating pathway for NAVIGATION - \n")
         waypoint, step_list = w8.get_path(target_fruit_list, target_fruits_pos, obstacles, 
                                           robot_step_size= 0.1,
                                           goal_tolerance= 0.3,
-                                          ccw=True)
+                                          ccw=False)
 
         print(f"--> Total steps: {sum(step_list)}")
 
@@ -150,16 +168,13 @@ try:
                 y = pose[1]
                 theta = np.rad2deg(pose[2])
                 print(f"\n---> ROBOT pose w slame updated: [{x} {y} {theta}]")
-                # input("enter ...")
-                ###########################################################
-                # 3. Rotate 360 and SLAM
-                ###########################################################
-                # counter_slam += 1
-                # if counter_slam == 12:
-                #     operate.rotate_360_slam()
 
             
-            shopping_time = 5
+            ###########################################################
+            # 3. When reach the target, wait and continue
+            # any post-processing here?
+            ###########################################################
+            shopping_time = 3
             print_period = 0.5
             print(f"Reach {fruit}, wait for {shopping_time}s\n\n\n")
             cur_time = time.time()
