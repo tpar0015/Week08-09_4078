@@ -3,7 +3,9 @@ import cv2
 import numpy as np
 import time
 import pygame
+import sys
 from w8HelperFunc import *
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
 
 class GUI:

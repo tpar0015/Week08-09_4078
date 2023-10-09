@@ -163,7 +163,6 @@ class EKF:
 
         # Stack measurements (landmarks pos) 
         z = np.concatenate([lm.position.reshape(-1,1) for lm in measurements], axis=0)
-        
         # Meas COVAR
         R = np.zeros((2*len(measurements),2*len(measurements)))
         for i in range(len(measurements)):
@@ -176,14 +175,18 @@ class EKF:
             # x3  -   -   -   -   s3 
             R[2*i:2*i+2, 2*i:2*i+2] = measurements[i].covariance # return from ARUCO_DET()
 
+        
         # Measurement
         z_hat = self.robot.measure(self.markers, idx_list)
         z_hat = z_hat.reshape((-1,1),order="F")
-        # Measurement Jacobian
-        H = self.robot.derivative_measure(self.markers, idx_list)
-
+        # Measurement Jacobian of marker 
+        H = self.robot.derivative_measure(self.markers, idx_list)  # H_w
+        # H_w = self.robot.derivative_measure(self.markers, idx_list) # H_w
+        # H_x = self.robot.derivative_drive(raw_drive_meas)          # H_x
         # Just a term in calculating Kalman Gain
         S = H @ self.P @ H.T + R
+        # Textbook S
+        # S = H_x @ P @ H_x.T + H_w @ R @ H_w.T
         # Kalman gain:
         K = self.P @ H.T @ np.linalg.inv(S)
 
@@ -241,12 +244,14 @@ class EKF:
     
 
     def state_transition(self, raw_drive_meas):
+        """Calculates the Jacobian of the state transition function"""
         n = self.number_landmarks()*2 + 3
         F = np.eye(n)
         F[0:3,0:3] = self.robot.derivative_drive(raw_drive_meas)
         return F
     
     def predict_covariance(self, raw_drive_meas):
+        """Predicts covariance of the state after a drive command? """
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
         Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas) + 0.01*np.eye(3)
@@ -410,7 +415,7 @@ class EKF:
         if not_pause:
             bg_rgb = np.array([213, 213, 213]).reshape(1, 1, 3)
         else:
-            bg_rgb = np.array([119, 120, 120]).reshape(1, 1, 3)
+            bg_rgb = np.array([120, 120, 120]).reshape(1, 1, 3)
             
         canvas = np.ones((res[1], res[0], 3))*bg_rgb.astype(np.uint8)
         # in meters, 
