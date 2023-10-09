@@ -7,9 +7,9 @@ import json
 import argparse
 import time
 import w8HelperFunc as w8
-from util.Prac4_Support.Obstacle import *
-from util.Prac4_Support.math_functions import *
-import util.navigate_algo as navi
+from Prac4_Support.Obstacle import *
+from Prac4_Support.math_functions import *
+import navigate_algo as navi
 # import util.w8HelperFunc as w8
 import navigate_algo as navi
 from Prac4_Support.Obstacle import *
@@ -22,8 +22,8 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 # import utility functions
 sys.path.insert(0, "{}/util".format(os.getcwd()))
 from pibot import PenguinPi    # access the robot
-import DatasetHandler as dh    # save/load functions
-import measure as measure      # measurements
+import util.DatasetHandler as dh    # save/load functions
+import util.measure as measure      # measurements
 # import pygame                       # python package for GUI
 
 

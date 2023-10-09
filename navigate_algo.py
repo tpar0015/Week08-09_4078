@@ -1,4 +1,4 @@
-from util.Prac4_Support.Obstacle import *
+from Prac4_Support.Obstacle import *
 # from Prac4_Support.path_animation import *
 from shapely import geometry
 

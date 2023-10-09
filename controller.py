@@ -61,8 +61,10 @@ class RobotControl:
         """Control the robot to drive to the target. Drives until robot_pose 
         is within 5 cm and 1 degree of the target pose."""
         dt = 0.01
+
         angle_threshold = np.pi/180 # 1 Degree
         distance_threshold = 0.05 # 5 cm
+
         dist_diff, ang_diff = self.pose_difference(end_pose)
 
         while (dist_diff < distance_threshold and not turn_flag) or (ang_diff < angle_threshold and turn_flag):
@@ -73,9 +75,6 @@ class RobotControl:
             self.localize(drive_meas)
             # Update GUI
             # self.update_gui() 
-            self.localize()
-            # Update GUIv
-            self.update_gui() 
             # Update loop conditions
             dist_diff, ang_diff = self.pose_difference(end_pose)
 
@@ -123,7 +122,6 @@ if __name__ == "__main__":
     # Target Pose Estimation
     # Read in target fruits 
     import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
