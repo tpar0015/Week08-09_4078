@@ -43,6 +43,7 @@ class Robot:
         measurements = []
         for idx in idx_list:
             marker = markers[:,idx:idx+1]
+            # Find the marker position using rotation matrix and translation matrix (transformation matrix)
             marker_bff = Rot_theta.T @ (marker - robot_xy)
             measurements.append(marker_bff)
 

@@ -18,20 +18,11 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from util.pibot import PenguinPi    # access the robot
 import util.DatasetHandler as dh    # save/load functions
 import util.measure as measure      # measurements
-from gui import GUI             # GUI
-import pygame                       # python package for GUI
+# from gui import GUI             # GUI
+# import pygame                       # python package for GUI
 
 #####################################
-'''Import Robot and EKF classes'''
-#####################################
-# sys.path.insert(0, "{}/slam".format(os.getcwd()))
-# from slam.ekf import EKF
-# from slam.robot import Robot
-# import slam.aruco_detector as aruco
-# import shutil
-
-#####################################
-from operate_navi_noGui import Operate
+from operate_m4_navi import Operate
 import argparse
 
 

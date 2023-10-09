@@ -73,6 +73,9 @@ class RobotControl:
             self.localize(drive_meas)
             # Update GUI
             # self.update_gui() 
+            self.localize()
+            # Update GUIv
+            self.update_gui() 
             # Update loop conditions
             dist_diff, ang_diff = self.pose_difference(end_pose)
 
@@ -104,7 +107,6 @@ class RobotControl:
         # Driving Time
         drive_time = dist / (self.scale * self.wheel_vel) 
         return drive_time
-
 
     def angle_parameters(self, point):
         pose = self.get_pose()

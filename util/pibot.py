@@ -15,7 +15,7 @@ class PenguinPi:
         
         ''' Bill modified this - 15 Sep'''
         self.tick = 50
-        self.turning_tick = 20
+        self.turning_tick = 10
 
     ##########################################
     # Change the robot velocity here

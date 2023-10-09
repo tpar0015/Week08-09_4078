@@ -74,12 +74,16 @@ class Operate:
     def control(self):    
         if args.play_data:
             lv, rv = self.pibot.set_velocity()            
+        
         else:
             lv, rv = self.pibot.set_velocity(
                 self.command['motion'])
+            
         if not self.data is None:
             self.data.write_keyboard(lv, rv)
+        
         dt = time.time() - self.control_clock
+        
         # running in sim
         if args.ip == 'localhost':
             drive_meas = measure.Drive(lv, rv, dt)
@@ -89,6 +93,8 @@ class Operate:
         self.control_clock = time.time()
         return drive_meas
         
+
+
     # camera control
     def take_pic(self):
         self.img = self.pibot.get_image()
@@ -98,6 +104,7 @@ class Operate:
     # SLAM with ARUCO markers       
     def update_slam(self, drive_meas):
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+        
         if self.request_recover_robot:
             pass
             # is_success = self.ekf.recover_from_pause(lms)
@@ -111,8 +118,11 @@ class Operate:
         elif self.ekf_on: # and not self.debug_flag:
             self.ekf.predict(drive_meas)
             # self.ekf.add_landmarks(lms) # <------------------------------
+
+            # Print all the lm_tag
+
             for lm in lms:
-                if lm not in range(1, 11):
+                if lm.tag not in range(1, 11):
                     lms.remove(lm)
                     
             self.ekf.update(lms)
@@ -371,14 +381,14 @@ if __name__ == "__main__":
         # operate.record_data()
         # operate.save_image()
 
-        if abs(operate.ekf.robot.state[0:3, 0][-1]) == 360:
-            input("Enter to reset SLAM")
+        # if abs(operate.ekf.robot.state[0:3, 0][-1]) == 360:
+        #     input("Enter to reset SLAM")
 
 
         #############################################3
         # visualise
-        # operate.draw(canvas)
-        # pygame.display.update()
+        operate.draw(canvas)
+        pygame.display.update()
 
 
 
