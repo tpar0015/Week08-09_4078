@@ -284,79 +284,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
 
 
 
-# Waypoint navigation
-# the robot automatically drives to a given [x,y] coordinate
-# note that this function requires your camera and wheel calibration parameters from M2, and the "util" folder from M1
-# fully automatic navigation:
-# try developing a path-finding algorithm that produces the waypoints automatically
-# def drive_to_point(waypoint, robot_pose):
-#     # imports camera / wheel calibration parameters 
-#     fileS = "calibration/param/scale.txt"
-#     scale = np.loadtxt(fileS, delimiter=',')
-#     fileB = "calibration/param/baseline.txt"
-#     baseline = np.loadtxt(fileB, delimiter=',')
-    
-#     ####################################################
-#     # TODO: replace with your codes to make the robot drive to the waypoint
-#     # One simple strategy is to first turn on the spot facing the waypoint,
-#     # then drive straight to the way point
-
-#     # Turn toward waypoint
-#     robot_angle = np.arctan((waypoint[1]-robot_pose[1])/(waypoint[0]-robot_pose[0])) # rad
-#     robot_angle = robot_pose[2] - robot_angle
-
-#     wheel_vel = 30 # tick
-    
-#     # turn towards the waypoint
-#     ''' Get baseline'''
-    
-#     dataDir = "{}calibration/param/".format(os.getcwd())
-#     fileNameB = "{}baseline.txt".format(dataDir)
-#     # read baseline from numpy formation to float
-#     baseline = np.loadtxt(fileNameB, delimiter=',')
-
-
-#     turn_time = (baseline * robot_angle) / wheel_vel
-#     print("Turning for {:.2f} seconds".format(turn_time))
-
-#     ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
-    
-#     # after turning, drive straight to the waypoint
-#     drive_time = 0.0 # replace with your calculation
-#     print("Driving for {:.2f} seconds".format(drive_time))
-#     ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
-#     ####################################################
-
-#     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
-
-
-# def get_robot_pose():
-#     ####################################################
-#     # TODO: replace with your codes to estimate the pose of the robot
-#     # We STRONGLY RECOMMEND you to use your SLAM code from M2 here <----------------
-
-
-
-#     # update the robot pose [x,y,theta]
-#     robot_pose = [0.0,0.0,0.0] # replace with your calculation
-#     ####################################################
-#     # image_poses = {}
-#     # with open(f'{script_dir}/lab_output/images.txt') as fp:
-#     #     for line in fp.readlines():
-#     #         pose_dict = ast.literal_eval(line)
-#     #         image_poses[pose_dict['imgfname']] = pose_dict['pose']
-
-#     # robot_pose = image_poses[image_poses.keys()[-1]]
-#     ####################################################
-
-
-#     return robot_pose
-
 ''' Thomas code - GUI and driving in pooling loop'''
-
-    # def set_robot_pose(self, state):
-    #     self.ekf.robot.state[0:3, 0] = state
-
     # # Waypoint navigation
     # # the robot automatically drives to a given [x,y] coordinate
     # # note that this function requires your camera and wheel calibration parameters from M2, and the "util" folder from M1
@@ -445,29 +373,8 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     #     self.gui.update_state(self.get_robot_pose())
     #     self.gui.draw()
 
-
-    # ''' Added two arguments'''
-    # def drive_to_point_pooling(self, waypoint, wheel_vel = 20):
-
-    #     #######################################################################################
-    #     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    #     # # Turn toward waypoint
-    #     turn_vel, turn_time = self.get_turn_params(waypoint)
-    #     self.pibot.turning_tick = turn_vel
-    #     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    #     # after turning, drive straight to the waypoint
-    #     drive_time = self.get_dist_params(waypoint)
-    #     self.pibot.tick = self.wheel_vel
-    #     # this similar to self.command['motion'] in prev M
-    #     dt = 0.1
-
-    #     # To turn
-    #     self.drive_control(turn_vel, self.wheel_vel, turn_time, dt, turn=True)
-    #     print(f"!@#$ inside drive_to_point, cur_pose: {self.get_robot_pose()}")
-    #     # To drive
-    #     self.drive_control(turn_vel, self.wheel_vel, drive_time, dt, turn=False)
-    #     #######################################################################################
-
+################################################################################################################
+################################################################################################################
 
 # main loop
 if __name__ == "__main__":

@@ -153,7 +153,7 @@ class EKF:
         - Added map lock by Christopher
         - Added logging by Christopher
     '''
-    def update(self, measurements, print_period = False):
+    def update(self, measurements, unsafe_mode = False, print_period = False):
         if not measurements:
             return
 
@@ -208,7 +208,12 @@ class EKF:
         '''Correct State'''
         if self.lock_map:
             # Only update robot pose
-            x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
+            if unsafe_mode:
+                # apply weight - lesss update on robot state
+                x[mask] = x[mask] + 0.77* np.dot(K[mask], (z - z_hat))
+            else:
+                x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
+        
         else:
             # Original code where x is updated based on measurement
             x = x + K @ (z - z_hat)
