@@ -180,10 +180,25 @@ class Map:
             return False
     def ccw(self, A, B, C):
         """ccw: Returns true if points are in counter clockwise order"""
-        return (C[1]-A[1]) * (B[0]-A[0]) >= (B[1]-A[1]) * (C[0]-A[0])
+        val = (C[1]-A[1]) * (B[0]-A[0]) - (B[1]-A[1]) * (C[0]-A[0])
+        if val > 0:
+            return 1
+        elif val < 0:
+            return -1
+        else:
+            return 0
+        
     def line_intersect(self, A, B, C, D):
         """line_intersect: Returns true if line segments AB and CD intersect"""
-        return self.ccw(A,C,D) != self.ccw(B,C,D) and self.ccw(A,B,C) != self.ccw(A,B,D)
+        # return self.ccw(A,C,D) != self.ccw(B,C,D) and self.ccw(A,B,C) != self.ccw(A,B,D)
+        o1 = self.ccw(A, C, D)
+        o2 = self.ccw(B, C, D)
+        o3 = self.ccw(A, B, C)
+        o4 = self.ccw(A, B, D)
+        if ((o1 != o2) and (o3 != o4)):
+            return True
+        return False
+
     def line_obstacle_free(self, A, B):
         """
         line_obstacle_free: Returns true if line segment AB is obstacle free
