@@ -219,8 +219,8 @@ if __name__ == "__main__":
         for detection in bounding_boxes:
             # count the occurrence of each target type
             occurrence = detected_type_list.count(detection[0])
-            '''LOWER CASE HERE'''
-            target_pose_dict[f'{detection[0].lower()}_{occurrence}'] = estimate_pose(camera_matrix, detection, robot_pose)
+            # lower case is used to match the names format
+            target_pose_dict[f'{detection[0].lower()}_{occurrence}'] = estimate_pose(camera_matrix, detection, robot_pose) # lower case <------
             # print(f"--------\n{target_pose_dict}\n--------")
             detected_type_list.append(detection[0])
 
@@ -240,3 +240,11 @@ if __name__ == "__main__":
         json.dump(target_est, fo, indent=4)
 
     print('Estimations saved!')
+
+    # save target pose estimations into fruit_pose_est.txt without the first "{"
+    with open(f'{script_dir}/lab_output/fruit_est_pose.txt', 'w') as fo:
+        json.dump(target_est, fo, indent=4)
+        # remove the first "{"
+        fo.seek(1)
+        fo.truncate()
+    print('fruit_est_pose.txt saved!')

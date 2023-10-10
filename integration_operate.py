@@ -19,21 +19,12 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from util.pibot import PenguinPi    # access the robot
 import util.DatasetHandler as dh    # save/load functions
 import util.measure as measure      # measurements
-# from gui import GUI             # GUI
-# import pygame                       # python package for GUI
-
-# #####################################
-# '''Import Robot and EKF classes'''
-# #####################################
-# sys.path.insert(0, "{}/slam".format(os.getcwd()))
-# from slam.ekf import EKF
-# from slam.robot import Robot
-# import slam.aruco_detector as aruco
 import shutil
+import argparse
 
 #####################################
 from operate_m4_navi import Operate
-import argparse
+
 
 
 parser = argparse.ArgumentParser()
@@ -46,35 +37,33 @@ parser.add_argument("--port", metavar='', type=int,
 parser.add_argument("--calib_dir", type=str, default="calibration/param/")
 parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
-# parser.add_argument("--map", type=str, default='Home_test_map.txt')
 parser.add_argument("--map", type=str, default='map/M4_prac_map_full.txt')
 parser.add_argument("--shop", type=str, default='M5_Shopping_list.txt')
-
 parser.add_argument("--plot", type=int, default=1)
 args, _ = parser.parse_known_args()
 
 # read in the true map
 fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
-print(fruits_list)
-print(args.map)
 
-path_navi = 0
-alternate_path_navi = 1
-start = 1  
-slam = 1
+# Flag for Operation
+bug2_navi = 0
+a_star_navi = 1
+start = 1
 
-
+############################################################
+# Path planning, use known map to generate list of waypoint
+############################################################
 try:
-    if alternate_path_navi:
-        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(400,400), fruit_size=(300,300))
+    if a_star_navi:
+        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(500,500), fruit_size=(500, 500))
         arena.generate_map()
         arena.add_aruco_markers()
         arena.add_fruits_as_obstacles()
         arena.get_targets()
-        # arena.draw_arena(draw_path=True)
+        arena.draw_arena(draw_path=True)
         path = arena.get_path_xy()
         
-    if path_navi: 
+    if bug2_navi: 
     # create a list start from 1 to 10
         aruco_taglist = [i for i in range(1,11)]
 
@@ -91,24 +80,6 @@ try:
                                               shape = "rectangle", 
                                               size = 0.35,   # need to account for robot size
                                               )
-        
-        ''' Just for testing'''
-        #  # Plot all the obstacles
-        # for obs in obs_pos:
-        #     plt.plot(obs[0], obs[1], 'bx')  
-        # for obstacle_outline in obstacles:
-        #     plt.plot(obstacle_outline.vertices[:,0], obstacle_outline.vertices[:,1], 'b-', linewidth=0.5)
-        # # Plot all the target fruit
-        # for target in target_fruits_pos:
-        #     plt.plot(target[0], target[1], 'bo')
-
-        # plt.title("Waypoint path")
-        # plt.xlim(-1.5, 1.5)
-        # plt.ylim(-1.5, 1.5)
-        # fig = plt.gcf()
-        # fig.set_size_inches(5, 5)
-        # # plt.axis('equal')
-        # plt.show(block = True)
 
         # #######################################################################################
         print("\n\t- Generating pathway for NAVIGATION - \n")
@@ -126,22 +97,10 @@ try:
 except KeyboardInterrupt:
     exit()
 
-# point0 = [0, 0]
-# point1 = [0.1, 0.1]
-# point2 = [0.1, 0.2]
-# point3 = [0.1, 0.3]
-# point4 = [0.1, 0.4]
-# # create waypoint
-# waypoint = {
-#     "orange": [point0, point1, point2, point3, point4]
-# }
 
-###################################################################################
-###################################################################################
-#####################         GUI integrated          #############################
-###################################################################################
-###################################################################################
-
+############################################################
+# Main operation - drive to waypoints with SLAM
+############################################################
 try:
     if start:
         
@@ -153,53 +112,47 @@ try:
         # for fruit, path in waypoint.items():
         #     # Ignore first waypoint
         #     for waypoint in path[1:]:
+        
+        waypoint_count = 0
+
         for one_path in path:
-            for waypoint in one_path:
-                waypoint = waypoint * 0.001 # Convert to m
-                # if operate.ekf_on:
-                    # cur_pose = operate.get_robot_pose()
-                    # end_pose = operate.get_end_pose(cur_pose, waypoint)
-                    # operate.control(end_pose)
-                    # operate.drive_to_point(waypoint)
-                
-                # else:
+            for waypoint_mm in one_path:
+                # Convert to m
+                waypoint = []
+                for coor in waypoint_mm:
+                    waypoint.append(coor * 0.001)
+
                 ###########################################################
                 # 1. Robot drives to the waypoint
+                # 2. Update robot pose using SLAM (during turn and drive)
                 ###########################################################
                 print(f"\nNext waypoint {waypoint}")
                 operate.drive_to_point(waypoint)
                 operate.stop()
-
-                ###########################################################
-                # 2. Manual compute robot pose (based on start pose & end points)
-                ###########################################################
-                # operate.manual_set_robot_pose(start_pose, waypoint, debug=False)
-
                 # Debugging
                 pose = operate.get_robot_pose()
                 x = pose[0]
                 y = pose[1]
                 theta = np.rad2deg(pose[2])
-                print(f"\n---> ROBOT pose w slame updated: [{x} {y} {theta}]")
+                print(f"---> ROBOT pose: [{x} {y} {theta}]")
+                # input("Enter to continue")
 
-            
             ###########################################################
             # 3. When reach the target, wait and continue
-            # any post-processing here?
             ###########################################################
             shopping_time = 3
-            print_period = 0.5
+            print_period = 1
             # print(f"Reach {fruit}, wait for {shopping_time}s\n\n\n")
             print("Reached Fruit")
             cur_time = time.time()
+            print_time = cur_time
             while time.time() - cur_time < shopping_time:
-                print_time = time.time()
-                # Print every 0.2s
+                # Print every print_period
                 if time.time() - print_time > print_period:
-                    print("...", end=" ")
+                    print(f"Grabbing the fruit - Hopefully not smashing it")
                     print_time = time.time()
 
-            # input("Enter to continute\n")
+
 
 except KeyboardInterrupt:
     if start:

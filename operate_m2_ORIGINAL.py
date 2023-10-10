@@ -239,7 +239,6 @@ class Operate:
                     self.ekf.reset()
             # run SLAM
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                self.ekf_on = True
                 '''BL: Added know map'''
                 # fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
                 # self.ekf.init_landmarks(aruco_true_pos)

@@ -179,12 +179,12 @@ class EKF:
             self.P[-2,-2] = self.init_lm_cov**2
             self.P[-1,-1] = self.init_lm_cov**2
 
-        # Validate
-        print("_____________________")
-        print(self.markers)
-        print("################")
-        print(self.taglist)
-        print("_____________________\n\n")
+        # # Validate
+        # print("_____________________")
+        # print(self.markers)
+        # print("################")
+        # print(self.taglist)
+        # print("_____________________\n\n")
 
     ##########################################
     ##########################################

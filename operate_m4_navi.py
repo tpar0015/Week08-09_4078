@@ -19,6 +19,7 @@ import util.DatasetHandler as dh    # save/load functions
 import util.measure as measure      # measurements
 from gui import GUI             # GUI
 import pygame                       # python package for GUI
+import shutil
 
 #####################################
 '''Import Robot and EKF classes'''
@@ -85,7 +86,7 @@ class Operate:
         # self.control_time = 0
 
         self.turn_vel = 10
-        self.wheel_vel = 25
+        self.wheel_vel = 40
 
 
         if gui:
@@ -121,8 +122,9 @@ class Operate:
     ##############################################################################
     ######################      SLAM related    ##################################
     ##############################################################################
-    
+
     - Uncommented the "add_landmarks" in update_slam()
+    - Only do update step if CERTAIN NUM of lms are seen
     '''
 
     # SLAM with ARUCO markers       
@@ -141,9 +143,33 @@ class Operate:
                 # print(f"{lm.tag}--", end="")
                 # print("\n#~#~#~#~#~#~#~#~#~")
 
-            # Only update if see >1 lm
-            if len(lms) > 1:
-                self.ekf.update(lms, print_period)
+            unsafe_mode_flag = False
+            # Adjust the Kalman gain if only detect 1 landmark --> unsafe
+            if len(lms) == 1:
+                unsafe_mode_flag = True
+                print("x_x")
+            elif len(lms) >= 2:
+                print("safe")
+                unsafe_mode_flag = False
+            # if len = 0 - already accounted for in EKF.update()
+            # if len(lms) == 0:
+                # print(f"{unsafe_mode_flag} !!!!!!!!!!!!!!!!!!!!")
+            self.ekf.update(lms, unsafe_mode_flag, print_period)
+
+            ''' TUNE THIS LATER'''
+            # # Check if it has been using lms_seen_to_update = 2 for too long
+            # if time.time() - self.risky_update_clock > 7:
+            #     lms_seen_to_update = 1
+            
+            # if (time.time() - self.safe_update_clock >= 5) and (lms_seen_to_update == 1):
+            #     lms_seen_to_update = 2
+
+            # # Only update if see >1 landmark
+            # if len(lms) >= lms_seen_to_update:
+            #     self.ekf.update(lms, print_period)
+            # # If cannot update, start the clock
+            # elif lms_seen_to_update == 2:
+            #     self.risky_update_clock = time.time()
 
 
     # wheel and camera calibration for SLAM
@@ -231,7 +257,7 @@ class Operate:
         while time.time() <= turn_time:
             self.take_pic()
             drive_meas = self.control()
-            self.update_slam(drive_meas, print_period = 0.2)
+            self.update_slam(drive_meas, print_period = 0)
         self.stop()
 
         # Set drive velocity
@@ -243,7 +269,7 @@ class Operate:
             drive_meas = self.control()
             self.update_slam(drive_meas, print_period = 0)
             # Prevent passing the distance, resulting in TURNING OVER
-            if self.reach_close_point(self.get_robot_pose()[:2], waypoint, threshold=0.05):
+            if self.reach_close_point(self.get_robot_pose()[:2], waypoint, threshold=0.03):
                 break
 
         self.stop()
@@ -300,6 +326,67 @@ class Operate:
     def stop(self):
         self.pibot.set_velocity([0, 0])
         self.command['motion'] = [0, 0]
+
+    '''
+    ##############################################################################
+    ######################      From M2 - Gui     ################################
+    ##############################################################################
+    '''
+    # # save SLAM map
+    # def record_data(self):
+    #     if self.command['output']:
+    #         self.output.write_map(self.ekf)
+    #         self.notification = 'Map is saved'
+    #         self.command['output'] = False
+
+    # # paint the GUI            
+    # def draw(self, canvas):
+    #     canvas.blit(self.bg, (0, 0))
+    #     text_colour = (220, 220, 220)
+    #     v_pad = 40
+    #     h_pad = 20
+
+    #     # paint SLAM outputs
+    #     ekf_view = self.ekf.draw_slam_state(res=(320, 480+v_pad), not_pause = self.ekf_on)
+    #     canvas.blit(ekf_view, (2*h_pad+320, v_pad))
+    #     robot_view = cv2.resize(self.aruco_img, (320, 240))
+    #     self.draw_pygame_window(canvas, robot_view, 
+    #                             position=(h_pad, v_pad)
+    #                             )
+
+    #     # canvas.blit(self.gui_mask, (0, 0))
+    #     self.put_caption(canvas, caption='SLAM', position=(2*h_pad+320, v_pad)) # M2
+    #     self.put_caption(canvas, caption='Detector (M3)',
+    #                      position=(h_pad, 240+2*v_pad)) # M3
+    #     self.put_caption(canvas, caption='PiBot Cam', position=(h_pad, v_pad))
+
+    #     notifiation = TEXT_FONT.render(self.notification,
+    #                                       False, text_colour)
+    #     canvas.blit(notifiation, (h_pad+10, 596))
+
+    #     time_remain = self.count_down - time.time() + self.start_time
+    #     if time_remain > 0:
+    #         time_remain = f'Count Down: {time_remain:03.0f}s'
+    #     elif int(time_remain)%2 == 0:
+    #         time_remain = "Time Is Up !!!"
+    #     else:
+    #         time_remain = ""
+    #     count_down_surface = TEXT_FONT.render(time_remain, False, (50, 50, 50))
+    #     canvas.blit(count_down_surface, (2*h_pad+320+5, 530))
+    #     return canvas
+
+    # @staticmethod
+    # def draw_pygame_window(canvas, cv2_img, position):
+    #     cv2_img = np.rot90(cv2_img)
+    #     view = pygame.surfarray.make_surface(cv2_img)
+    #     view = pygame.transform.flip(view, True, False)
+    #     canvas.blit(view, position)
+    
+    # @staticmethod
+    # def put_caption(canvas, caption, position, text_colour=(200, 200, 200)):
+    #     caption_surface = TITLE_FONT.render(caption,
+    #                                       False, text_colour)
+    #     canvas.blit(caption_surface, (position[0], position[1]-25))
         
 
 '''
