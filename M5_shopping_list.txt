@@ -1,5 +1,4 @@
-orange
 lemon
 pumpkin
+potato
 lime
-capsicum
