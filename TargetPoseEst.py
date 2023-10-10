@@ -224,16 +224,21 @@ if __name__ == "__main__":
             # print(f"--------\n{target_pose_dict}\n--------")
             detected_type_list.append(detection[0])
 
-    print(f"Done extracting: Target_pose_dict:")
-    for target_dict in target_pose_dict:
-        print(f"{target_dict.split('_')[0]}: {target_pose_dict[target_dict]}")
-    # merge the estimations of the targets so that there are at most 3 estimations of each target type
-    target_est = {}
-    target_est = merge_estimations(target_pose_dict)
+    # print(f"Done extracting: Target_pose_dict:")
+    # for target_dict in target_pose_dict:
+    #     print(f"{target_dict.split('_')[0]}: {target_pose_dict[target_dict]}")
 
-    print(f"Done merging: merged target_est")
-    for target_est in target_pose_dict:
-        print(f"{target_est.split('_')[0]}: {target_pose_dict[target_est]}")
+    '''MERGING'''
+    # merge the estimations of the targets so that there are at most 3 estimations of each target type
+    # target_est = {}
+    # target_est = merge_estimations(target_pose_dict)
+    
+    target_est = target_pose_dict
+    print(target_est)
+
+    # print(f"Done merging: merged target_est")
+    # for target_est in target_pose_dict:
+    #     print(f"{target_est.split('_')[0]}: {target_pose_dict[target_est]}")
 
     # save target pose estimations
     with open(f'{script_dir}/lab_output/targets.txt', 'w') as fo:
@@ -244,7 +249,11 @@ if __name__ == "__main__":
     # save target pose estimations into fruit_pose_est.txt without the first "{"
     with open(f'{script_dir}/lab_output/fruit_est_pose.txt', 'w') as fo:
         json.dump(target_est, fo, indent=4)
-        # remove the first "{"
-        fo.seek(1)
-        fo.truncate()
+
+    # remove the first "{"
+    with open(f'{script_dir}/lab_output/fruit_est_pose.txt', 'r+') as fo:
+        content = fo.read()
+        fo.seek(0, 0)
+        fo.write(content[1:-1])
+    
     print('fruit_est_pose.txt saved!')
