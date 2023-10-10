@@ -38,8 +38,10 @@ parser.add_argument("--calib_dir", type=str, default="calibration/param/")
 parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
 parser.add_argument("--map", type=str, default='map/M4_prac_map_full.txt')
-parser.add_argument("--shop", type=str, default='M5_Shopping_list.txt')
+parser.add_argument("--shop", type=str, default='M5_shopping_list.txt')
 parser.add_argument("--plot", type=int, default=1)
+parser.add_argument("--aruco_size", type=int, default=500)
+parser.add_argument("--fruit_size", type=int, default=500)
 args, _ = parser.parse_known_args()
 
 # read in the true map
@@ -55,7 +57,7 @@ start = 1
 ############################################################
 try:
     if a_star_navi:
-        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(500,500), fruit_size=(500, 500))
+        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(args.aruco_size,args.aruco_size), fruit_size=(args.fruit_size, args.fruit_size))
         arena.generate_map()
         arena.add_aruco_markers()
         arena.add_fruits_as_obstacles()

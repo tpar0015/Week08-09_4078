@@ -147,7 +147,7 @@ class Operate:
             # Adjust the Kalman gain if only detect 1 landmark --> unsafe
             if len(lms) == 1:
                 unsafe_mode_flag = True
-                print("x_x")
+                # print("x_x")
             elif len(lms) >= 2:
                 print("safe")
                 unsafe_mode_flag = False
