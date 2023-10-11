@@ -42,6 +42,7 @@ parser.add_argument("--shop", type=str, default='M5_shopping_list.txt')
 parser.add_argument("--plot", type=int, default=1)
 parser.add_argument("--aruco_size", type=int, default=500)
 parser.add_argument("--fruit_size", type=int, default=500)
+parser.add_argument("--waypoint_threshold", type=int, default=200)
 args, _ = parser.parse_known_args()
 
 # read in the true map
@@ -57,7 +58,7 @@ start = 1
 ############################################################
 try:
     if a_star_navi:
-        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(args.aruco_size,args.aruco_size), fruit_size=(args.fruit_size, args.fruit_size))
+        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(args.aruco_size,args.aruco_size), fruit_size=(args.fruit_size, args.fruit_size), waypoint_threshold=args.waypoint_threshold)
         arena.generate_map()
         arena.add_aruco_markers()
         arena.add_fruits_as_obstacles()

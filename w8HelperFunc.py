@@ -384,48 +384,50 @@ if __name__ == "__main__":
     parser.add_argument("--port", metavar='', type=int, default=8080)
     args, _ = parser.parse_known_args()
 
-    ppi = PenguinPi(args.ip,args.port)
+    # ppi = PenguinPi(args.ip,args.port)
 
-    # read in the true map
-    fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
-    print(aruco_true_pos)
+    # # read in the true map
+    # fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
+    # print(aruco_true_pos)
 
-    search_list = read_search_list("M4_prac_shopping_list.txt") # change to 'M4_true_shopping_list.txt' for lv2&3
-    print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
+    # search_list = read_search_list("M4_prac_shopping_list.txt") # change to 'M4_true_shopping_list.txt' for lv2&3
+    # print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
+    fruit, fruit_pose, aruco_markers =  read_true_map("est_truth_map.txt")
+    print(aruco_markers)
 
-    waypoint = [0.0,0.0]
-    robot_pose = [0.0,0.0,0.0]
+    # waypoint = [0.0,0.0]
+    # robot_pose = [0.0,0.0,0.0]
 
-    # The following is only a skeleton code for semi-auto navigation
-    while True:
-        # enter the waypoints
-        # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
-        x,y = 0.0,0.0
-        x = input("X coordinate of the waypoint: ")
-        try:
-            x = float(x)
-        except ValueError:
-            print("Please enter a number.")
-            continue
+    # # The following is only a skeleton code for semi-auto navigation
+    # while True:
+    #     # enter the waypoints
+    #     # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
+    #     x,y = 0.0,0.0
+    #     x = input("X coordinate of the waypoint: ")
+    #     try:
+    #         x = float(x)
+    #     except ValueError:
+    #         print("Please enter a number.")
+    #         continue
 
 
-        y = input("Y coordinate of the waypoint: ")
-        try:
-            y = float(y)
-        except ValueError:
-            print("Please enter a number.")
-            continue
+    #     y = input("Y coordinate of the waypoint: ")
+    #     try:
+    #         y = float(y)
+    #     except ValueError:
+    #         print("Please enter a number.")
+    #         continue
 
-        # estimate the robot's pose
-        robot_pose = get_robot_pose()
+    #     # estimate the robot's pose
+    #     robot_pose = get_robot_pose()
 
-        # robot drives to the waypoint
-        waypoint = [x,y]
-        drive_to_point(waypoint,robot_pose)
-        print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
+    #     # robot drives to the waypoint
+    #     waypoint = [x,y]
+    #     # drive_to_point(waypoint,robot_pose)
+    #     print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
 
-        # exit
-        ppi.set_velocity([0, 0])
-        uInput = input("Add a new waypoint? [Y/N]")
-        if uInput == 'N':
-            break
+    #     # exit
+    #     ppi.set_velocity([0, 0])
+    #     uInput = input("Add a new waypoint? [Y/N]")
+    #     if uInput == 'N':
+    #         break

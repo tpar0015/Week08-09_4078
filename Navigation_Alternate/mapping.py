@@ -5,6 +5,7 @@ Date Modified: 2023-08-23
 
 """
 import numpy as np
+import math
 import networkx as nx
 import matplotlib.pyplot as plt
 import sys
@@ -19,12 +20,15 @@ from PIL import Image
 class Map:
     """Generates map o arena, navigates shortest path. Online updating of path
     with detected obstacles factored in"""
-    def __init__(self, arena: tuple, radius: float, true_map: str, shopping_list: str, aruco_size = (300,300), fruit_size = (300,300)):
+    def __init__(self, arena: tuple, radius: float, true_map: str, shopping_list: str, aruco_size = (300,300), fruit_size = (300,300), distance_threshold=200):
         """
         Initializes variables
         """
         self.arena_dimensions = arena
+        self.distance_threshold = distance_threshold
         self.radius = radius
+        self.center_obstacles = []
+        self.obstacle_radius = []
         self.G = Graph()
         self.location = (0,0,0)
         self.path = []
@@ -34,6 +38,7 @@ class Map:
         self.shopping_list = shopping_list
         self.aruco_size = aruco_size
         self.fruit_size = fruit_size
+        self.circle_flag = False
 
     def generate_map(self):
         """
@@ -61,16 +66,16 @@ class Map:
             for j in range(col_n):
                 if i > 0:
                     nodes[i][j].add_neighbour(nodes[i - 1][j], self.G.distance(nodes[i][j].xy, nodes[i-1][j].xy)) # Up
-                    #nodes[i][j].add_neighbour(nodes[i - 1][j], 1) # Up
+                    # nodes[i][j].add_neighbour(nodes[i - 1][j], 1) # Up
                 if i < row_n - 1:
                     nodes[i][j].add_neighbour(nodes[i + 1][j], self.G.distance(nodes[i][j].xy, nodes[i+1][j].xy))  # Down
-                    #nodes[i][j].add_neighbour(nodes[i + 1][j], 1)  # Down
+                    # nodes[i][j].add_neighbour(nodes[i + 1][j], 1)  # Down
                 if j > 0:
                     nodes[i][j].add_neighbour(nodes[i][j - 1], self.G.distance(nodes[i][j].xy, nodes[i][j-1].xy)) # Left
-                    #nodes[i][j].add_neighbour(nodes[i][j - 1], 1) # Left
+                    # nodes[i][j].add_neighbour(nodes[i][j - 1], 1) # Left
                 if j < col_n - 1:
                     nodes[i][j].add_neighbour(nodes[i][j + 1], self.G.distance(nodes[i][j].xy, nodes[i][j+1].xy)) # Right
-                    #nodes[i][j].add_neighbour(nodes[i][j + 1], 1)
+                    # nodes[i][j].add_neighbour(nodes[i][j + 1], 1)
         # Adds nodes to graph
         for i in nodes:
             for j in i:
@@ -92,22 +97,28 @@ class Map:
         # obs_y = obs_y + object_size[1]/2
         self.G.reset_graph()
         closest_node = self.G.get_nearest_node((obs_x, obs_y))
-        obstacle_nodes = self.G.adjacent_nodes(closest_node, object_size)
+        # Appends center of obstacles
+        self.center_obstacles.append(closest_node.xy)
+        self.obstacle_radius.append(math.hypot(object_size[0]/2, object_size[1]/2))
+        print(self.obstacle_radius[-1])
+        obstacle_nodes = self.G.adjacent_nodes(closest_node, object_size, self.circle_flag)
         obstacle_xy = []
         for node in obstacle_nodes:
             obstacle_xy.append(node.xy)
-        corners = [(min([x[0] for x in obstacle_xy]) - 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
-                    (min([x[0] for x in obstacle_xy]) - 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
-                    (max([x[0] for x in obstacle_xy]) + 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
-                    (max([x[0] for x in obstacle_xy]) + 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
-                    ]
-        # corners = [(min(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
-        #             (min(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
-        #             (max(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
-        #             (max(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
-        #             ]
-
-        self.obstacle_corners.append(corners)
+        if self.circle_flag:
+            pass
+        else:
+            corners = [(min([x[0] for x in obstacle_xy]) - 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
+                        (min([x[0] for x in obstacle_xy]) - 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
+                        (max([x[0] for x in obstacle_xy]) + 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
+                        (max([x[0] for x in obstacle_xy]) + 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
+                        ]
+            # corners = [(min(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
+            #             (min(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
+            #             (max(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
+            #             (max(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
+            #             ]
+            self.obstacle_corners.append(corners)
         for node in obstacle_nodes:
             if is_fruit:
                 node.is_fruit = True
@@ -199,7 +210,7 @@ class Map:
             return True
         return False
 
-    def line_obstacle_free(self, A, B):
+    def line_obstacle_free_square(self, A, B):
         """
         line_obstacle_free: Returns true if line segment AB is obstacle free
         """
@@ -208,24 +219,50 @@ class Map:
             if self.line_intersect(A.xy, B.xy, corner[0], corner[1]) or self.line_intersect(A.xy, B.xy, corner[0], corner[2]) or self.line_intersect(A.xy, B.xy, corner[1], corner[3]) or self.line_intersect(A.xy, B.xy, corner[2], corner[3]):
                 return False
         return True
+    
+    def line_obstacle_free_circle(self, A, B):
+            # y = mx + c
+            if B[0] - A[0] == 0:
+                a = 1
+                b = 0
+                c = -A[0]
+            else:
+                m = (B[1] - A[1]) / (B[0] - A[0])
+                a = -m
+                b = 1
+                c = m * A[0] - A[1]
+            for i in range(len(self.center_obstacles)):
+                x,y = self.center_obstacles[i]
+                dist = ((abs(a * x + b * y + c)) / math.sqrt(a * a + b * b))
+                if dist + self.radius <= self.obstacle_radius[i]:
+                    return False
+
 
     def shorten_shortest_path(self, path) -> None:
         """
         Shortens path by removing nodes that are not needed.
         """
-        threshold_distance = 200
+        threshold_distance = self.distance_threshold
         start_node = self.G[eval(path[0])]
         i = 1
         while i < len(path) - 1:
             current_node = self.G[eval(path[i])]
             
             # Check if line between start and current node is obstacle free
-            if self.line_obstacle_free(start_node, current_node) and self.G.distance(start_node.xy, current_node.xy) < threshold_distance:
-                path.pop(i)
+            if self.circle_flag:
+                if self.line_obstacle_free_circle(start_node.xy, current_node.xy) and self.G.distance(start_node.xy, current_node.xy) < threshold_distance:
+                    path.pop(i)
 
+                else:
+                    start_node = current_node
+                    i += 1
             else:
-                start_node = current_node
-                i += 1
+                if self.line_obstacle_free_square(start_node, current_node) and self.G.distance(start_node.xy, current_node.xy) < threshold_distance:
+                    path.pop(i)
+
+                else:
+                    start_node = current_node
+                    i += 1
 
         return path
 
@@ -332,7 +369,7 @@ class Map:
 
 
         nx.draw(G_img, pos=node_positions, node_size=node_sizes, with_labels=False, node_color=node_colors, edge_color=edge_colors, width=edge_width)
-        # plt.show(block=False)
+        plt.show()
         # Figure size
         fig = plt.gcf()
         fig.set_size_inches(18.5, 10.5)
@@ -344,7 +381,7 @@ class Map:
 
 
 if __name__ == '__main__':
-    map_test = Map((3000, 3000), 50, true_map="map/nhnh_Mon_v1.txt", shopping_list="M5_shopping_list.txt")
+    map_test = Map((3000, 3000), 50, true_map="est_truth_map.txt", shopping_list="M5_shopping_list.txt", distance_threshold=350, aruco_size=(300,300), fruit_size=(300,300))
     map_test.generate_map()
     map_test.add_aruco_markers()
     map_test.add_fruits_as_obstacles()
