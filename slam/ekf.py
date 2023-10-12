@@ -99,7 +99,7 @@ class EKF:
         
         self.P = F @ self.P @ F.T + Q
         
-        print(f"Predict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+        # print(f"Predict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
 
 
 
@@ -138,7 +138,7 @@ class EKF:
         self.set_state_vector(x)
         self.P = P
 
-        print(f"~~Update: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+        # print(f"~~Update: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
 
 
     def state_transition(self, raw_drive_meas):
@@ -150,8 +150,18 @@ class EKF:
     def predict_covariance(self, raw_drive_meas):
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
-        
-        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.01*np.eye(3)
+
+        # if robot idle
+        if raw_drive_meas.left_speed == 0 and raw_drive_meas.right_speed == 0:
+            print("Robot idle - ", end="")
+            print(np.rad2deg(self.robot.state[-1]))
+            model_noise = 0
+        # if robot moving
+        else:
+            model_noise = 0.01
+
+
+        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ model_noise*np.eye(3)
         return Q
 
     def add_landmarks(self, measurements):

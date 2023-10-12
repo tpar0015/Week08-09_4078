@@ -46,7 +46,7 @@ class Operate:
         if args.play_data:
             self.pibot = dh.DatasetPlayer("record")
         else:
-            self.pibot = PenguinPi(args.ip, args.port)
+            self.pibot = PenguinPi(args.ip, args.port, tick = 40, turning_tick = 20)
         # 
         if args.save_data:
             self.data = dh.DatasetWriter('record')

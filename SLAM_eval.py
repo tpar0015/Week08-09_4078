@@ -99,6 +99,8 @@ if __name__ == '__main__':
     gt_aruco = parse_groundtruth(args.groundtruth)
     us_aruco = parse_user_map(args.estimate)
 
+    print(us_aruco)
+
     taglist, us_vec, gt_vec = match_aruco_points(us_aruco, gt_aruco)
 
 
@@ -124,21 +126,31 @@ if __name__ == '__main__':
     print("np.array(\n"+np.array2string(us_vec_aligned, precision=4, separator=',')+')')
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
-    # Write the aligned pred locations to a file named "aruco_est_pose.txt"
-    # Follow this format
-    '''
-    {"aruco10_0": {"y": -0.6525, "x": -0.5625}, 
-    "aruco1_0": {"y": -0.8099999999999999, "x": 1.1849999999999998}, 
-    "aruco2_0": {"y": 0.3675, "x": 0.32999999999999996}}'''
-    with open("lab_output/aruco_est_pose.txt", 'w') as f:
-        f.write("{")
-        for i, tag in enumerate(taglist):
-            f.write('"aruco{}_0": '.format(tag))
-            f.write('{{"y": {}, "x": {}}}'.format(us_vec_aligned[1,i], us_vec_aligned[0,i]))
-            if i != len(taglist)-1:
-                f.write(',\n')
-        # f.write("}")
-        f.write(",\n") # for appending the fruit_est.txt
 
-    print("lab_output/aruco_est_pose.txt created\n")
+    print("debug - coor appear with y first\n")
+    print("user aruco slam:")
+    for tag, coor in us_aruco.items():
+        x = coor[0]
+        y = coor[1]
+        print(tag, y, x)
+    print("aligned:")
+    print(us_vec_aligned)
+    print("\n\n")
+    # Write the aligned pred locations to a file named "aruco_est_pose.txt"
+    # # Follow this format
+    # '''
+    # {"aruco10_0": {"y": -0.6525, "x": -0.5625}, 
+    # "aruco1_0": {"y": -0.8099999999999999, "x": 1.1849999999999998}, 
+    # "aruco2_0": {"y": 0.3675, "x": 0.32999999999999996}}'''
+    # with open("lab_output/aruco_est_pose.txt", 'w') as f:
+    #     f.write("{")
+    #     for i, tag in enumerate(taglist):
+    #         f.write('"aruco{}_0": '.format(tag))
+    #         f.write('{{"y": {}, "x": {}}}'.format(us_vec_aligned[1,i], us_vec_aligned[0,i]))
+    #         if i != len(taglist)-1:
+    #             f.write(',\n')
+    #     # f.write("}")
+    #     f.write(",\n") # for appending the fruit_est.txt
+
+    # print("lab_output/aruco_est_pose.txt created\n")
 

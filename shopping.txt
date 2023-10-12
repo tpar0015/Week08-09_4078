@@ -1,5 +1,5 @@
-capsicum
-lemon
 orange
 lime
-pumpkin
+lemon
+mango
+pear

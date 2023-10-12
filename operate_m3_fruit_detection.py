@@ -409,7 +409,7 @@ if __name__ == "__main__":
     
     current_time = pygame.time.get_ticks()
     ################################################################################
-    loop_interval = 700  # 1000 milliseconds = 1 second --> for capture image
+    loop_interval = 1000  # 1000 milliseconds = 1 second --> for capture image
     ################################################################################
 
     while start:

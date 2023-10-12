@@ -100,7 +100,7 @@ class Map:
         # Appends center of obstacles
         self.center_obstacles.append(closest_node.xy)
         self.obstacle_radius.append(math.hypot(object_size[0]/2, object_size[1]/2))
-        print(self.obstacle_radius[-1])
+        # print(self.obstacle_radius[-1])
         obstacle_nodes = self.G.adjacent_nodes(closest_node, object_size, self.circle_flag)
         obstacle_xy = []
         for node in obstacle_nodes:

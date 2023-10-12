@@ -76,6 +76,9 @@ def generate_aruco_est_pose(aruco_dict, fname="aruco_est_pose.txt"):
         f.write("{")
 
         for tag, coor in aruco_dict.items():
+            # only get tag if it in range from 1 to 10
+            if (tag not in range(1, 11)):
+                continue
             coor = coor.tolist()
             f.write(f"\"aruco{tag}_0\": ")
             # turn list type to float
@@ -91,8 +94,8 @@ if __name__ == '__main__':
 
     # Arguments
     parser = argparse.ArgumentParser("Create estimate map with aruco and fruit")
-    parser.add_argument("--slam", type=str, help="The estimate file name.", default="lab_output/slam.txt")
-    parser.add_argument("--fruit", type=str, help="The estimate file name.", default="lab_output/targets.txt")
+    parser.add_argument("--slam", type=str, help="path to slam.txt", default="lab_output/slam.txt")
+    parser.add_argument("--fruit", type=str, help="path to targets.txt", default="lab_output/targets.txt")
     args = parser.parse_args()
     # get current script directory (TargetPoseEst.py)
     script_dir = os.path.dirname(os.path.abspath(__file__))     
