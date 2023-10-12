@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, "../util")
 from pibot import PenguinPi
 
-def calibrateBaseline():
+def calibrateBaseline(angle):
     # Compute the robot basline parameter using a range of wheel velocities.
     # For each wheel velocity, the robot baseline parameter can be computed by
     # comparing the time elapsed and rotation completed to the input wheel
@@ -20,8 +20,8 @@ def calibrateBaseline():
     ##########################################
     wheel_velocities_range = range(10, 50, 10)
     delta_times = []
-    angle_caliration = np.pi
-    angle_caliration_deg = np.rad2deg(angle_caliration)
+    angle_caliration_deg = angle # here!
+    angle_caliration_rad = np.deg2rad(angle_caliration_deg)
 
     for wheel_vel in wheel_velocities_range:
         print("Driving at {} ticks/s.".format(wheel_vel))
@@ -52,7 +52,7 @@ def calibrateBaseline():
     for delta_time, wheel_vel in zip(delta_times, wheel_velocities_range):
         # pass # TODO: replace with your code to compute the baseline parameter using scale, wheel_vel, and delta_time
         # baseline += ( delta_time * wheel_vel * scale ) / np.pi
-        baseline += 2 * ( delta_time * wheel_vel * scale ) / (angle_caliration)
+        baseline += 2 * ( delta_time * wheel_vel * scale ) / (angle_caliration_rad)
     
     baseline = baseline / num
     print("The baseline parameter is estimated as {:.6f} m.".format(baseline))
@@ -66,6 +66,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
+    parser.add_argument("--angle", metavar='', type=int, default=360)
     args, _ = parser.parse_known_args()
 
     ppi = PenguinPi(args.ip,args.port)
@@ -74,7 +75,7 @@ if __name__ == "__main__":
     dataDir = "{}/param/".format(os.getcwd())
 
     print('Calibrating PiBot baseline...\n')
-    baseline = calibrateBaseline()
+    baseline = calibrateBaseline(args.angle)
     fileNameB = "{}baseline.txt".format(dataDir)
     np.savetxt(fileNameB, np.array([baseline]), delimiter=',')
 
