@@ -80,20 +80,23 @@ class Graph:
 
         return min_node
 
-    def adjacent_nodes(self, node, object_size) -> list:
+    def adjacent_nodes(self, node, object_size, circle_flag) -> list:
         """adjacent_nodes:  returns surrounding nodes within a radius"""
-        def recursive_nodes(node, object_size, pos, memo) -> None:
+        def recursive_nodes(node, object_size, pos, memo, circle_flag) -> None:
             x_radius = object_size[0]/2
             y_radius = object_size[1]/2
             for neighbour,_ in node.neighbours:
                 memo.append(node)
                 # If node.x is within x_radius, and node.y is within y_radius 
-                if self.distance_x(neighbour.xy[0], pos[0]) < x_radius and self.distance_x(neighbour.xy[1], pos[1]) < y_radius and neighbour not in memo:
-                # if self.distance(neighbour.xy, pos) < math.hypot(x_radius,y_radius) and neighbour not in memo:
-                    recursive_nodes(neighbour, object_size, pos, memo)
+                if not circle_flag:
+                    if self.distance_x(neighbour.xy[0], pos[0]) < x_radius and self.distance_x(neighbour.xy[1], pos[1]) < y_radius and neighbour not in memo:
+                        recursive_nodes(neighbour, object_size, pos, memo, circle_flag)
+                else:
+                    if self.distance(neighbour.xy, pos) < math.hypot(x_radius,y_radius) and neighbour not in memo:
+                        recursive_nodes(neighbour, object_size, pos, memo, circle_flag)
 
         memo = []
-        recursive_nodes(node, object_size, node.xy, memo)
+        recursive_nodes(node, object_size, node.xy, memo, circle_flag)
         return memo
 
     def set_obstacle(self, node) -> None:
