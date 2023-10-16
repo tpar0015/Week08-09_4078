@@ -33,6 +33,8 @@ from slam_rehaul.robot import Robot
 import slam_rehaul.aruco_detector as aruco
 import shutil
 
+from YOLO.detector import Detector
+
 
 
 ####################################################################################
@@ -67,15 +69,11 @@ class Operate:
         self.control_clock = time.time()
 
         # Improving slam ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # waypoint where SLAM update step can start - to ignore weird SLAM update initially
-        self.confident_waypoints = 3
-        # threshold for when robot should do 360 self localisation
-        # self.unsafe_wp_threshold = 3
-        # count the number of waypoint that robot moving with unsafe mode (detect <=1 landmarks)
-        self.safe_waypoint = 100 #arbitrary big number for starting
-
         self.unsafe_waypoint = 0
         self.unsafe_threshold = 3
+
+        self.collide_threshold = 0.2
+        self.backward_dist = 0.1
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         self.image_id = 0
@@ -88,7 +86,13 @@ class Operate:
         # initialise images from camera
         self.img = np.zeros([240,320,3], dtype=np.uint8)
         self.aruco_img = np.zeros([240,320,3], dtype=np.uint8)
-        self.bg = pygame.image.load('pics/gui_mask.jpg')
+        self.detector_output = np.zeros([240, 320], dtype=np.uint8)
+        if args.yolo_model == "":
+            self.detector = None
+            self.yolo_vis = cv2.imread('pics/8bit/detector_splash.png')
+        else:
+            self.detector = Detector("YOLO/model/" + args.yolo_model)
+            self.yolo_vis = np.ones((240, 320, 3)) * 100
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Use self.command to use self.control func inside POLLING loop
@@ -136,7 +140,7 @@ class Operate:
 
     # SLAM with ARUCO markers       
     # def update_slam(self, drive_meas, slam_update_flag=True, weight=0):
-    def update_slam(self, drive_meas):
+    def update_slam(self, drive_meas, waypoint_ctr=3):
         print_period = 0
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
 
@@ -149,13 +153,19 @@ class Operate:
                 if lm.tag not in range(1, 11):
                     lms.remove(lm)
 
-                if lm.dist <= 0.2:
-                    print("!!! Alerted - about to collide with landmarks !!!")
-                    input("Enter to continue")
+                if waypoint_ctr > 2:
+                    # print(f"lm {lm.tag} is {lm.dist} away")
+                    if lm.dist <= self.collide_threshold:
+                        print("!!! Alerted - about to collide with landmarks !!!")
+                        self.stop()
+                        self.manual_backward()
+                        input("Enter to continue")
+                        return -1
 
             # unsafe_mode_flag = True
             # adjust_weight = 1
-            self.ekf.update(lms, print_period=print_period)
+            if waypoint_ctr > 2:
+                self.ekf.update(lms, print_period=print_period)
 
         return len(lms)
 
@@ -225,14 +235,76 @@ class Operate:
         drive_meas = measure.Drive(lv, -rv, dt)
         self.control_clock = time.time()
         return drive_meas
+
     
-    def control_pooling(self):
-        self.take_pic()
-        self.check_fruit()
-        drive_meas = self.control()
-        # if slam_update_flag:
-        lms_detect = self.update_slam(drive_meas)
-        return lms_detect
+    def manual_backward(self):
+        scale = self.ekf.robot.wheels_scale
+        drive_time = self.backward_dist / (scale * self.pibot.tick)
+        # set velocity
+        self.command['motion'] = [-1, 0]
+        # drive
+        drive_time += time.time()
+        while time.time() <= drive_time:
+            self.take_pic()
+            drive_meas = self.control()
+            self.update_slam(drive_meas, waypoint_ctr = 0) # not updating slam
+        self.stop()
+
+
+    def detect_fruit(self):
+        # need to convert the colour before passing to YOLO
+        yolo_input_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
+
+        self.detector_output, self.yolo_vis = self.detector.detect_single_image(yolo_input_img)
+
+        dist = []
+        for detection in self.detector_output:
+            fruit_name = detection[0]
+            tmp = self.est_fruit_dist(detection)
+            dist.append(tmp)
+            print(f"{fruit_name} is {tmp}m away")
+        
+        # check for collision
+        if len(dist) > 0:
+            if min(dist) < self.collide_threshold:
+            # if min(dist) < 0.1:
+                print(f"!!! Alerted - fruit {min(dist)} !!!")
+                self.stop()
+                self.manual_backward()
+                input("Enter to continue")
+                return True
+        
+        return False
+
+        # For GUI:
+        # covert the colour back for display purpose
+        # self.yolo_vis = cv2.cvtColor(self.yolo_vis, cv2.COLOR_RGB2BGR)
+        # # self.command['inference'] = False     # uncomment this if you do not want to continuously predict
+        # self.file_output = (yolo_input_img, self.ekf)
+
+    def est_fruit_dist(self, obj_info):
+        focal_length = self.ekf.robot.camera_matrix[0][0]
+        target_dimensions_dict = {'Orange': [0.075,0.075,0.073], 'Lemon': [0.08,0.05,0.05], 
+                                'Lime': [0.08,0.05,0.05], 'Tomato': [0.07,0.07,0.065], 
+                                'Capsicum': [0.095,0.085,0.085], 'Potato': [0.11,0.06,0.062], 
+                                'Pumpkin': [0.07,0.085,0.075], 'Garlic': [0.08,0.065,0.075], 
+
+
+                                'orange': [0.075,0.075,0.073], 'lemon': [0.08,0.05,0.05],
+                                'pear': [0,0,0.09], 'berry': [0,0,0.038], 'mango': [0,0,0.057], 
+                                'apple': [0,0,0.088], 'pine': [0,0,0.038]}
+        
+        '''FIND HEIGHT OF OBJECT IN IMAGE'''
+        # estimate target pose using bounding box and robot pose
+        target_class = obj_info[0]     # get predicted target label of the box
+        target_box = obj_info[1]       # get bounding box measures: [x,y,width,height]
+        true_height = target_dimensions_dict[target_class][2]   # look up true height of by class label
+        # compute pose of the target based on bounding box info, true object height, and robot's pose
+        pixel_height = target_box[3]
+        pixel_center = target_box[0]
+        distance = true_height/pixel_height * focal_length  # estimated distance between the object and the robot based on height
+        return distance   
+
 
     # Rotate 360 to accurately self localise
     def localise_360(self):
@@ -252,18 +324,19 @@ class Operate:
         turn_360_time += time.time()
 
         while time.time() <= turn_360_time:
-            self.control_pooling()
+            self.take_pic()
+            drive_meas = self.control()
+            self.update_slam(drive_meas)
         # Reset speed
         self.pibot.turning_tick = tmp
-        self.stop();
+        self.stop()
 
         print("Just finish 360 turn, current pose: ")
         self.print_robot_pose()
-        input("Done, continue the navi?\n")
+        # input("Done, continue the navi?\n")
 
-
-
-    def drive_to_point(self, waypoint):
+    # waypoint_ctr used to skip update slam for the first waypoint
+    def drive_to_point(self, waypoint, waypoint_ctr):
         turn_time = self.get_turn_time(waypoint)
         drive_time = self.get_drive_time(waypoint)
         #################################################
@@ -277,12 +350,22 @@ class Operate:
         # Turn at spot
         turn_time += time.time()
         self.control_clock = time.time()
-        # For 360 localisation check
-        localise_flag = True    
+        
+        localise_flag = True
+        collision_flag = False
         while time.time() <= turn_time:
-            lms_detect = self.control_pooling()
+            self.take_pic()
+            drive_meas = self.control()
+            # if slam_update_flag:
+            lms_detect = self.update_slam(drive_meas, waypoint_ctr)
+            if lms_detect == -1 or self.detect_fruit():
+                collision_flag = True
+                # skip this waypoint
+                return None
             if lms_detect != 0:
                 localise_flag = False
+            
+
         # print(f"from turn: {unsafe_mode_flag_1}")
         self.stop()
         ##################################################
@@ -291,8 +374,16 @@ class Operate:
         self.command['motion'] = [1, 0]
         # Drive straight
         drive_time += time.time()
+
         while time.time() <= drive_time:
-            lms_detect = self.control_pooling()      
+            self.take_pic()
+            drive_meas = self.control()
+            # if slam_update_flag:
+            lms_detect = self.update_slam(drive_meas, waypoint_ctr)
+            if lms_detect == -1 or self.detect_fruit():
+                collision_flag = True
+                # skip this waypoint
+                return None
             if lms_detect != 0:
                 localise_flag = False
             # Prevent passing the distance, resulting in TURNING OVER
@@ -356,45 +447,64 @@ class Operate:
 
     '''
     ##############################################################################
-    ######################      From M3 - Fruit detection     ####################
+    ######################      From M2 - Gui     ################################
     ##############################################################################
     '''
+    # # save SLAM map
+    # def record_data(self):
+    #     if self.command['output']:
+    #         self.output.write_map(self.ekf)
+    #         self.notification = 'Map is saved'
+    #         self.command['output'] = False
 
-    def check_fruit(self):
-        # Detect fruit
-        bounding_boxes, bbox_img = self.yolo.detect_single_image(self.img)
-        # cv2.imshow('bbox', bbox_img)
-        # cv2.waitKey(0)
-        fruit_pose_dict = {}
-        for detection in bounding_boxes:
-            self.estimate_fruit_dist(detection)
+    # # paint the GUI            
+    # def draw(self, canvas):
+    #     canvas.blit(self.bg, (0, 0))
+    #     text_colour = (220, 220, 220)
+    #     v_pad = 40
+    #     h_pad = 20
 
-    def estimate_fruit_dist(self, obj_info):
-        # Get camera calibration params
-        camera_matrix = self.ekf.robot.camera_matrix
-        focal_length = camera_matrix[0][0]
+    #     # paint SLAM outputs
+    #     ekf_view = self.ekf.draw_slam_state(res=(320, 480+v_pad), not_pause = self.ekf_on)
+    #     canvas.blit(ekf_view, (2*h_pad+320, v_pad))
+    #     robot_view = cv2.resize(self.aruco_img, (320, 240))
+    #     self.draw_pygame_window(canvas, robot_view, 
+    #                             position=(h_pad, v_pad)
+    #                             )
 
-        target_dimensions_dict = {'Orange': [0.075,0.075,0.073], 'Lemon': [0.08,0.05,0.05], 
-                            'Lime': [0.08,0.05,0.05], 'Tomato': [0.07,0.07,0.065], 
-                            'Capsicum': [0.095,0.085,0.085], 'Potato': [0.11,0.06,0.062], 
-                            'Pumpkin': [0.07,0.085,0.075], 'Garlic': [0.08,0.065,0.075], 
+    #     # canvas.blit(self.gui_mask, (0, 0))
+    #     self.put_caption(canvas, caption='SLAM', position=(2*h_pad+320, v_pad)) # M2
+    #     self.put_caption(canvas, caption='Detector (M3)',
+    #                      position=(h_pad, 240+2*v_pad)) # M3
+    #     self.put_caption(canvas, caption='PiBot Cam', position=(h_pad, v_pad))
 
+    #     notifiation = TEXT_FONT.render(self.notification,
+    #                                       False, text_colour)
+    #     canvas.blit(notifiation, (h_pad+10, 596))
 
-                            'orange': [0.075,0.075,0.073], 'lemon': [0.08,0.05,0.05],
-                            'pear': [0,0,0.09], 'berry': [0,0,0.038], 'mango': [0,0,0.057], 
-                            'apple': [0,0,0.088], 'pine': [0,0,0.038]}
-        
-        '''FIND HEIGHT OF OBJECT IN IMAGE'''
-        # estimate target pose using bounding box and robot pose
-        target_class = obj_info[0]     # get predicted target label of the box
-        target_box = obj_info[1]       # get bounding box measures: [x,y,width,height]
-        true_height = target_dimensions_dict[target_class][2]   # look up true height of by class label
-        # compute pose of the target based on bounding box info, true object height, and robot's pose
-        pixel_height = target_box[3]
-        pixel_center = target_box[0]
-        distance = true_height/pixel_height * focal_length  # estimated distance between the object and the robot based on height
-        print(f"{target_class} is {distance}m away from the robot")
+    #     time_remain = self.count_down - time.time() + self.start_time
+    #     if time_remain > 0:
+    #         time_remain = f'Count Down: {time_remain:03.0f}s'
+    #     elif int(time_remain)%2 == 0:
+    #         time_remain = "Time Is Up !!!"
+    #     else:
+    #         time_remain = ""
+    #     count_down_surface = TEXT_FONT.render(time_remain, False, (50, 50, 50))
+    #     canvas.blit(count_down_surface, (2*h_pad+320+5, 530))
+    #     return canvas
 
+    # @staticmethod
+    # def draw_pygame_window(canvas, cv2_img, position):
+    #     cv2_img = np.rot90(cv2_img)
+    #     view = pygame.surfarray.make_surface(cv2_img)
+    #     view = pygame.transform.flip(view, True, False)
+    #     canvas.blit(view, position)
+    
+    # @staticmethod
+    # def put_caption(canvas, caption, position, text_colour=(200, 200, 200)):
+    #     caption_surface = TITLE_FONT.render(caption,
+    #                                       False, text_colour)
+    #     canvas.blit(caption_surface, (position[0], position[1]-25))
         
 
 '''
@@ -489,64 +599,3 @@ if __name__ == "__main__":
 
         print("--- Stage 2 --- DEBUG --- Reach target fruit")
         input("Enter to continute\n")
-
-        # ###########################################################
-        # # 3. When reach each fruit, stop, rotate 360 && localise
-                    
-        '''~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'''
-
-        #     exit()
-
-
-        #     try: 
-        #     if start:
-        #         i = 1
-        #         operate = Operate(args, gui=False)
-        #         operate.stop()
-        #         # waypoint = [0.0, 0.0]
-        #         # operate.gui.add_manual_waypoint(waypoint)
-        #         print("\n\n~~~~~~~~~~~~~\nStarting\n~~~~~~~~~~~~~\n\n")
-        #         input("Enter to start")
-
-        #         while start:
-        #             # waypoints = operate.gui.waypoints
-        #             waypoints = waypoint_test['garlic']
-        #             waypoint = waypoints[i]
-
-        #             '''1. Robot drives to the waypoint'''
-        #             cur_pose = operate.get_robot_pose()
-        #             print(f"Current robot pose: {cur_pose}")
-        #             operate.drive_to_point_pooling(waypoint)
-                    
-        #             '''2. Manual compute robot pose (based on start pose & end points)'''
-        #             operate.manual_set_robot_pose(cur_pose, waypoint)
-        #             # print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
-        #             print("\n\n#####################################")
-        #             print(f"Reach cur_waypoint, New robot theta: {np.rad2deg(operate.get_robot_pose()[-1])}")
-        #             print("#####################################\n\n")
-
-        #             '''Go to next waypoint'''
-        #             if i < len(waypoints) - 1:
-        #                 i += 1      
-
-        #             '''STOP'''
-        #             if i == len(waypoints) - 1:
-        #                 start = False
-
-        # except KeyboardInterrupt:
-        #     operate.stop()
-
-
-'''
-------------------------------------------------------------------------------
-Future TODO:
-- Update drive_to_point so that it can fit in while loop
-    * set as command line and input TIME into the func
-    * use control()
-
-- Upgrade manual_set_robot_pose() when ROBOT cannot see landmarks (cannot localise)
-    * Identify the time when it not see and see landmarks
-    * Calculate the pose based on the TIME and VEL
-
-- Modify GUI
-'''

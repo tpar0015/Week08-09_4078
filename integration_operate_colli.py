@@ -23,7 +23,7 @@ import shutil
 import argparse
 
 #####################################
-from operate_m4_navi import Operate
+from operate_m5 import Operate
 
 
 
@@ -54,6 +54,8 @@ parser.add_argument("--tick", metavar='', type=int, default=40)
 # For debug
 parser.add_argument("--plot", type=int, default=1)
 parser.add_argument("--waypoint_stop", type=int, default=0)
+# Fruit detection
+parser.add_argument("--yolo_model", default='latest_model.pt')
 
 args = parser.parse_args()
 

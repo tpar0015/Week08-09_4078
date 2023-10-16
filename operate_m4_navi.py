@@ -67,13 +67,6 @@ class Operate:
         self.control_clock = time.time()
 
         # Improving slam ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # waypoint where SLAM update step can start - to ignore weird SLAM update initially
-        self.confident_waypoints = 3
-        # threshold for when robot should do 360 self localisation
-        # self.unsafe_wp_threshold = 3
-        # count the number of waypoint that robot moving with unsafe mode (detect <=1 landmarks)
-        self.safe_waypoint = 100 #arbitrary big number for starting
-
         self.unsafe_waypoint = 0
         self.unsafe_threshold = 3
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -151,6 +144,7 @@ class Operate:
 
                 if lm.dist <= 0.2:
                     print("!!! Alerted - about to collide with landmarks !!!")
+                    self.stop()
                     input("Enter to continue")
 
             # unsafe_mode_flag = True
@@ -254,7 +248,7 @@ class Operate:
 
         print("Just finish 360 turn, current pose: ")
         self.print_robot_pose()
-        input("Done, continue the navi?\n")
+        # input("Done, continue the navi?\n")
 
     # waypoint_ctr used to skip update slam for the first waypoint
     def drive_to_point(self, waypoint, waypoint_ctr):
@@ -509,64 +503,3 @@ if __name__ == "__main__":
 
         print("--- Stage 2 --- DEBUG --- Reach target fruit")
         input("Enter to continute\n")
-
-        # ###########################################################
-        # # 3. When reach each fruit, stop, rotate 360 && localise
-                    
-        '''~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'''
-
-        #     exit()
-
-
-        #     try: 
-        #     if start:
-        #         i = 1
-        #         operate = Operate(args, gui=False)
-        #         operate.stop()
-        #         # waypoint = [0.0, 0.0]
-        #         # operate.gui.add_manual_waypoint(waypoint)
-        #         print("\n\n~~~~~~~~~~~~~\nStarting\n~~~~~~~~~~~~~\n\n")
-        #         input("Enter to start")
-
-        #         while start:
-        #             # waypoints = operate.gui.waypoints
-        #             waypoints = waypoint_test['garlic']
-        #             waypoint = waypoints[i]
-
-        #             '''1. Robot drives to the waypoint'''
-        #             cur_pose = operate.get_robot_pose()
-        #             print(f"Current robot pose: {cur_pose}")
-        #             operate.drive_to_point_pooling(waypoint)
-                    
-        #             '''2. Manual compute robot pose (based on start pose & end points)'''
-        #             operate.manual_set_robot_pose(cur_pose, waypoint)
-        #             # print(f"Finished driving to waypoint: {waypoint}; New robot pose: {operate.get_robot_pose()}")
-        #             print("\n\n#####################################")
-        #             print(f"Reach cur_waypoint, New robot theta: {np.rad2deg(operate.get_robot_pose()[-1])}")
-        #             print("#####################################\n\n")
-
-        #             '''Go to next waypoint'''
-        #             if i < len(waypoints) - 1:
-        #                 i += 1      
-
-        #             '''STOP'''
-        #             if i == len(waypoints) - 1:
-        #                 start = False
-
-        # except KeyboardInterrupt:
-        #     operate.stop()
-
-
-'''
-------------------------------------------------------------------------------
-Future TODO:
-- Update drive_to_point so that it can fit in while loop
-    * set as command line and input TIME into the func
-    * use control()
-
-- Upgrade manual_set_robot_pose() when ROBOT cannot see landmarks (cannot localise)
-    * Identify the time when it not see and see landmarks
-    * Calculate the pose based on the TIME and VEL
-
-- Modify GUI
-'''
