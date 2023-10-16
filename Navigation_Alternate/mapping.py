@@ -149,6 +149,7 @@ class Map:
         Updates path to avoid any new obstacles
         """
         end_node = self.G.get_nearest_node(waypoint[:2])
+        end_node.is_target = True
         if end_node is not None:
             self.G.djikstras(start_node, end_node)
             _, path = self.G.get_shortest_distance(end_node)
@@ -205,10 +206,7 @@ class Map:
         """
         line_obstacle_free: Returns true if line segment AB is obstacle free
         """
-        print(self.obstacle_corners)
         for corner in self.obstacle_corners:
-            print(A)
-            print(A.xy, B.xy, corner[0], corner[1], corner[2], corner[3])
             if self.line_intersect(A.xy, B.xy, corner[0], corner[1]) or self.line_intersect(A.xy, B.xy, corner[0], corner[2]) or self.line_intersect(A.xy, B.xy, corner[1], corner[3]) or self.line_intersect(A.xy, B.xy, corner[2], corner[3]):
                 return False
         return True
@@ -294,7 +292,7 @@ class Map:
         edge_attributes[("C", "D")] = {"color": "black", "width": 1}
         edge_attributes[("D", "A")] = {"color": "black", "width": 1}
 
-        flattened_path = []
+        flattened_path = [[0,0]]
         for path in self.path:
             for node in path:
                 flattened_path.append(node)
@@ -308,6 +306,9 @@ class Map:
             if node.fruit_name is not None:
                 G_img.add_node(node.name)
                 node_attributes[node.name] = {"pos":node.xy, "label": node.fruit_name, "color": "orange", "size": 20}
+            elif node.is_target:
+                G_img.add_node(node.name)
+                node_attributes[node.name] = {"pos": node.xy, "color": "yellow", "size": 50}
             elif node.aruco_num != -1:
                 G_img.add_node(node.name)
                 node_attributes[node.name] = {"pos": node.xy, "label": node.aruco_num, "color": "green", "size": 20}
@@ -317,7 +318,7 @@ class Map:
             elif node.is_fruit:
                 G_img.add_node(node.name)
                 node_attributes[node.name] = {"pos": node.xy, "color": "orange", "size": 20}
-            elif node.name in flattened_path:
+            elif node.name in flattened_path and not node.is_target:
                 G_img.add_node(node.name)
                 node_attributes[node.name] = {"pos": node.xy, "color": "red", "size": 20}
 
@@ -470,7 +471,7 @@ class Map:
 if __name__ == '__main__':
     map_test = Map((3000, 3000), 50, true_map="est_truth_map.txt", shopping_list="shopping.txt", distance_threshold=float('inf'), aruco_size=(500,500), fruit_size=(500,500))
     map_test.generate_map()
-    map_test.circle_flag = True
+    map_test.circle_flag = False 
     map_test.add_aruco_markers()
     map_test.add_fruits_as_obstacles()
     map_test.get_targets()
@@ -478,5 +479,7 @@ if __name__ == '__main__':
     # test_node.fruit_name = 'test'
     # test_node.is_fruit = True
     # map_test.add_obstacles(test_node.xy,(500,500), is_aruco=True,)
+    # for path in map_test.get_path_xy():
+    #     print(path)
     map_test.draw_arena_v2()
     
