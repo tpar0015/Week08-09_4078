@@ -88,7 +88,7 @@ class Map:
         self.location = pose
 
 
-    def add_obstacles(self, obs_xy, object_size: tuple, is_fruit=False, is_target=False) -> None:
+    def add_obstacles(self, obs_xy, object_size: tuple, is_fruit=False, is_target=False, is_aruco=False) -> None:
         """
         Re calibrates map with object blocked out on nodes.
         """
@@ -99,8 +99,10 @@ class Map:
         closest_node = self.G.get_nearest_node((obs_x, obs_y))
         # Appends center of obstacles
         self.center_obstacles.append(closest_node.xy)
+        if is_aruco:
+            self.aruco_num = is_aruco
+        
         self.obstacle_radius.append(math.hypot(object_size[0]/2, object_size[1]/2))
-        print(self.obstacle_radius[-1])
         obstacle_nodes = self.G.adjacent_nodes(closest_node, object_size, self.circle_flag)
         obstacle_xy = []
         for node in obstacle_nodes:
@@ -131,12 +133,14 @@ class Map:
         Adds aruco markers to map
         """
         _, _, aruco_positions = w8.read_true_map(self.true_map)
+        i = 1
         for aruco in aruco_positions:
             aruco = aruco * 1000
             # aruco_x = aruco[0] + self.arena_dimensions[0]/2
             # aruco_y = aruco[1] + self.arena_dimensions[1]/2
             # aruco = (aruco_x, aruco_y)
-            self.add_obstacles(aruco, self.aruco_size)
+            self.add_obstacles(aruco, self.aruco_size, is_aruco=i)
+            i += 1
 
     def add_fruits_as_obstacles(self):
         fruit_targets = w8.read_search_list(self.shopping_list)
@@ -282,23 +286,37 @@ class Map:
             
     def draw_arena(self, draw_path=True) -> None:
         """draw_arena: Draws arena as graph"""
-        G_img = nx.Graph()
+        G_img = nx.DiGraph()
+        node_labels = {}
         # Draw Nodes
         for node_name in self.G.nodes:
             node = self.G[eval(node_name)]
-            G_img.add_node(node.name, pos=node.xy)
+            if node.aruco_num == -1:
+                G_img.add_node(node.name, pos=node.xy)
+            else:
+                G_img.add_node(node.name, pos=node.xy)
+                node_labels[node.name] = str(node.aruco_num)
 
-        for node_name in self.G.nodes:
-            node = self.G[eval(node_name)]
-            for edge in node.neighbours:
-                G_img.add_edge(node.name, edge[0].name)
 
+        # for node_name in self.G.nodes:
+        #     node = self.G[eval(node_name)]
+        #     for edge in node.neighbours:
+        #         G_img.add_edge(node.name, edge[0].name)
+        path_edges = []
+        path_colours = ['red', 'blue', 'green', 'yellow', 'purple', 'orange']
+        edge_colors = []
+        edge_width = []
+
+        i = 0
         for path in self.path:
+
             node_idx = 0
             while node_idx < len(path) - 1:
                 G_img.add_edge(path[node_idx], path[node_idx + 1])
+                edge_colors.append(path_colours[i])
+                edge_width.append(3)
                 node_idx += 1
-
+            i += 1
 
         # Draw Bezier
         # t = np.linspace(0, 1, 100)
@@ -322,7 +340,9 @@ class Map:
         # Drawing Properties
         node_colors = []
         path_nodes = []
+        path_lengths = []
         for path in self.path:
+            path_lengths.append(len(path))
             for node in path:
                 path_nodes.append(node)
         for node in G_img.nodes:
@@ -350,25 +370,37 @@ class Map:
             edge_width = []
             path_edges = []
             for edge in G_img.edges:
-                # for path in self.path:
-                #     if edge[0] in path and edge[1] in path:
-                #         path_edges.append(edge)
+                for path in self.path:
+                    if edge[0] in path and edge[1] in path:
+                        path_edges.append(edge)
                 if edge[0] in ["A", "B", "C", "D"] or edge[1] in ["A", "B", "C", "D"]:
                     edge_colors.append("black")
                     edge_width.append(1)
                 elif edge in path_edges:
-                    edge_colors.append("red")
-                    edge_width.append(1)
+                    path_colour = 0
+                    index = path_edges.index(edge)
+                    for i in range(len(path_lengths)):
+                        if index < sum(path_lengths[:i+1]):
+                            path_colour = i
+                            break
+                    edge_colors.append(path_colours[path_colour])
+                    edge_width.append(3)
 
                 else:
                     edge_colors.append("black")
                     edge_width.append(1)
         else:
-            edge_colors = ["black" for _ in G_img.edges]
-            edge_width = [1 for _ in G_img.edges]
+            while len(edge_colors) < G_img.number_of_edges():
+                edge_colors.append("black")
+                edge_width.append(1)
 
-
-        nx.draw(G_img, pos=node_positions, node_size=node_sizes, with_labels=False, node_color=node_colors, edge_color=edge_colors, width=edge_width)
+        print(
+            
+        )
+        # nx.draw(G_img, pos=node_positions, node_size=node_sizes, with_labels=False, node_color=node_colors, edge_color=edge_colors, width=edge_width)
+        print(edge_colors)
+        nx.draw_networkx_edges(G_img, pos=node_positions, edge_color=edge_colors, width=edge_width, arrows=True, arrowsize=5)
+        nx.draw_networkx_nodes(G_img, pos=node_positions, node_size=node_sizes, node_color=node_colors)
         plt.show()
         # Figure size
         fig = plt.gcf()
@@ -386,5 +418,5 @@ if __name__ == '__main__':
     map_test.add_aruco_markers()
     map_test.add_fruits_as_obstacles()
     map_test.get_targets()
-    map_test.draw_arena(draw_path=True)
+    map_test.draw_arena(draw_path=False)
     

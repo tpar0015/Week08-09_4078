@@ -18,6 +18,7 @@ class Node:
         self.is_obstacle = False
         self.is_target = False
         self.is_fruit = False
+        self.aruco_num = -1
 
     def add_neighbour(self, neighbour, weight):
         self.neighbours.append((neighbour, weight))
