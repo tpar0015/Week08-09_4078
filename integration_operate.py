@@ -79,7 +79,7 @@ try:
         arena.add_aruco_markers()
         arena.add_fruits_as_obstacles()
         arena.get_targets()
-        arena.draw_arena(draw_path=True)
+        arena.draw_arena_v2()
         path = arena.get_path_xy()
         # Ignore the first 0.0, 0.0
         path[0] = path[0][1:]
