@@ -21,7 +21,7 @@ class Map:
     """Generates map o arena, navigates shortest path. Online updating of path
     with detected obstacles factored in"""
     def __init__(self, arena: tuple, radius: float, true_map: str, shopping_list: str, 
-                 aruco_size = (300,300), fruit_size = (300,300), distance_threshold=200,
+                 aruco_size = (300,300), fruit_size = (300,300), target_size=(200,200), distance_threshold=200,
                  plot=True):
         """
         Initializes variables
@@ -40,6 +40,7 @@ class Map:
         self.shopping_list = shopping_list
         self.aruco_size = aruco_size
         self.fruit_size = fruit_size
+        self.target_size = target_size
         self.circle_flag = False
         self.plot = plot
 
@@ -140,8 +141,13 @@ class Map:
         fruit_coords = w8.print_target_fruits_pos(fruit_targets, fruit_list, fruit_pos)
         for fruit, name in zip(fruit_pos, fruit_list):
             fruit = fruit * 1000
-            self.G.get_nearest_node(fruit).fruit_name = name
-            self.add_obstacles(fruit, (self.fruit_size), is_fruit=True)
+            if name in fruit_targets:
+                self.G.get_nearest_node(fruit).fruit_name = name
+                self.add_obstacles(fruit, (self.target_size),is_fruit=True, is_target=True)
+            else:
+                self.G.get_nearest_node(fruit).fruit_name = name
+                self.add_obstacles(fruit, (self.fruit_size), is_fruit=True)
+
 
 
     def update_path(self, start_node, waypoint) -> None:
