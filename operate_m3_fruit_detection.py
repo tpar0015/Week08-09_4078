@@ -324,6 +324,11 @@ class Operate:
                 self.command['output'] = True
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            
+            # # if l is pressed, 
+            # elif event.type == pygame.KEYDOWN and event.key == pygame.K_l:
+            #     self.ekf.no_update_when_360 = not self.ekf.no_update_when_360
+            #     self.notification = f'no_update_when_360: {self.ekf.no_update_when_360}'
 
             # reset SLAM map
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:

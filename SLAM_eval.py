@@ -112,6 +112,11 @@ if __name__ == '__main__':
     print("Rotation Angle: {}".format(theta))
     print("Translation Vector: ({}, {})".format(x[0,0], x[1,0]))
 
+    # write theta and vector x into file name slam_log.txt
+    with open("slam_log.txt", 'a') as f:
+        f.write(f"Rotation Angle: {theta}\n")
+        f.write(f"Translation Vector: ({x[0,0]}, {x[1,0]})\n")
+
     rmse = compute_rmse(us_vec_aligned, gt_vec)
     print("The RMSE after alignment: {}".format(rmse))
 
@@ -125,6 +130,17 @@ if __name__ == '__main__':
     print("UN-aligned Pred locations")
     print("np.array(\n"+np.array2string(us_vec, precision=4, separator=',')+')')
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+    # Plot the three vector on the same graph
+    import matplotlib.pyplot as plt
+    plt.scatter(gt_vec[0,:], gt_vec[1,:], label="Ground Truth", marker='x')
+    plt.scatter(us_vec[0,:], us_vec[1,:], label="Unaligned Estimate", marker='o', linewidths=2)
+    plt.scatter(us_vec_aligned[0,:], us_vec_aligned[1,:], label="Aligned Estimate", alpha = 0.5)
+    plt.legend()
+    #axes equal
+    plt.axis('equal')
+    plt.show()
+    
 
 
     # print("debug - coor appear with y first\n")
