@@ -136,8 +136,8 @@ class Operate:
 
     # SLAM with ARUCO markers       
     # def update_slam(self, drive_meas, slam_update_flag=True, weight=0):
-    def update_slam(self, drive_meas, waypoint_ctr=3):
-        print_period = 0.5
+    def update_slam(self, drive_meas):
+        print_period = 0
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
 
         if self.request_recover_robot: pass
@@ -155,8 +155,7 @@ class Operate:
 
             # unsafe_mode_flag = True
             # adjust_weight = 1
-            if waypoint_ctr > 2:
-                self.ekf.update(lms, print_period=print_period)
+            self.ekf.update(lms, print_period=print_period)
 
         return len(lms)
 
@@ -226,6 +225,14 @@ class Operate:
         drive_meas = measure.Drive(lv, -rv, dt)
         self.control_clock = time.time()
         return drive_meas
+    
+    def control_pooling(self):
+        self.take_pic()
+        self.check_fruit()
+        drive_meas = self.control()
+        # if slam_update_flag:
+        lms_detect = self.update_slam(drive_meas)
+        return lms_detect
 
     # Rotate 360 to accurately self localise
     def localise_360(self):
@@ -245,9 +252,7 @@ class Operate:
         turn_360_time += time.time()
 
         while time.time() <= turn_360_time:
-            self.take_pic()
-            drive_meas = self.control()
-            self.update_slam(drive_meas)
+            self.control_pooling()
         # Reset speed
         self.pibot.turning_tick = tmp
         self.stop();
@@ -256,8 +261,9 @@ class Operate:
         self.print_robot_pose()
         input("Done, continue the navi?\n")
 
-    # waypoint_ctr used to skip update slam for the first waypoint
-    def drive_to_point(self, waypoint, waypoint_ctr):
+
+
+    def drive_to_point(self, waypoint):
         turn_time = self.get_turn_time(waypoint)
         drive_time = self.get_drive_time(waypoint)
         #################################################
@@ -271,13 +277,10 @@ class Operate:
         # Turn at spot
         turn_time += time.time()
         self.control_clock = time.time()
-        
+        # For 360 localisation check
         localise_flag = True    
         while time.time() <= turn_time:
-            self.take_pic()
-            drive_meas = self.control()
-            # if slam_update_flag:
-            lms_detect = self.update_slam(drive_meas, waypoint_ctr)
+            lms_detect = self.control_pooling()
             if lms_detect != 0:
                 localise_flag = False
         # print(f"from turn: {unsafe_mode_flag_1}")
@@ -288,12 +291,8 @@ class Operate:
         self.command['motion'] = [1, 0]
         # Drive straight
         drive_time += time.time()
-
         while time.time() <= drive_time:
-            self.take_pic()
-            drive_meas = self.control()
-            # if slam_update_flag:
-            lms_detect = self.update_slam(drive_meas, waypoint_ctr)
+            lms_detect = self.control_pooling()      
             if lms_detect != 0:
                 localise_flag = False
             # Prevent passing the distance, resulting in TURNING OVER
@@ -357,64 +356,45 @@ class Operate:
 
     '''
     ##############################################################################
-    ######################      From M2 - Gui     ################################
+    ######################      From M3 - Fruit detection     ####################
     ##############################################################################
     '''
-    # # save SLAM map
-    # def record_data(self):
-    #     if self.command['output']:
-    #         self.output.write_map(self.ekf)
-    #         self.notification = 'Map is saved'
-    #         self.command['output'] = False
 
-    # # paint the GUI            
-    # def draw(self, canvas):
-    #     canvas.blit(self.bg, (0, 0))
-    #     text_colour = (220, 220, 220)
-    #     v_pad = 40
-    #     h_pad = 20
+    def check_fruit(self):
+        # Detect fruit
+        bounding_boxes, bbox_img = self.yolo.detect_single_image(self.img)
+        # cv2.imshow('bbox', bbox_img)
+        # cv2.waitKey(0)
+        fruit_pose_dict = {}
+        for detection in bounding_boxes:
+            self.estimate_fruit_dist(detection)
 
-    #     # paint SLAM outputs
-    #     ekf_view = self.ekf.draw_slam_state(res=(320, 480+v_pad), not_pause = self.ekf_on)
-    #     canvas.blit(ekf_view, (2*h_pad+320, v_pad))
-    #     robot_view = cv2.resize(self.aruco_img, (320, 240))
-    #     self.draw_pygame_window(canvas, robot_view, 
-    #                             position=(h_pad, v_pad)
-    #                             )
+    def estimate_fruit_dist(self, obj_info):
+        # Get camera calibration params
+        camera_matrix = self.ekf.robot.camera_matrix
+        focal_length = camera_matrix[0][0]
 
-    #     # canvas.blit(self.gui_mask, (0, 0))
-    #     self.put_caption(canvas, caption='SLAM', position=(2*h_pad+320, v_pad)) # M2
-    #     self.put_caption(canvas, caption='Detector (M3)',
-    #                      position=(h_pad, 240+2*v_pad)) # M3
-    #     self.put_caption(canvas, caption='PiBot Cam', position=(h_pad, v_pad))
+        target_dimensions_dict = {'Orange': [0.075,0.075,0.073], 'Lemon': [0.08,0.05,0.05], 
+                            'Lime': [0.08,0.05,0.05], 'Tomato': [0.07,0.07,0.065], 
+                            'Capsicum': [0.095,0.085,0.085], 'Potato': [0.11,0.06,0.062], 
+                            'Pumpkin': [0.07,0.085,0.075], 'Garlic': [0.08,0.065,0.075], 
 
-    #     notifiation = TEXT_FONT.render(self.notification,
-    #                                       False, text_colour)
-    #     canvas.blit(notifiation, (h_pad+10, 596))
 
-    #     time_remain = self.count_down - time.time() + self.start_time
-    #     if time_remain > 0:
-    #         time_remain = f'Count Down: {time_remain:03.0f}s'
-    #     elif int(time_remain)%2 == 0:
-    #         time_remain = "Time Is Up !!!"
-    #     else:
-    #         time_remain = ""
-    #     count_down_surface = TEXT_FONT.render(time_remain, False, (50, 50, 50))
-    #     canvas.blit(count_down_surface, (2*h_pad+320+5, 530))
-    #     return canvas
+                            'orange': [0.075,0.075,0.073], 'lemon': [0.08,0.05,0.05],
+                            'pear': [0,0,0.09], 'berry': [0,0,0.038], 'mango': [0,0,0.057], 
+                            'apple': [0,0,0.088], 'pine': [0,0,0.038]}
+        
+        '''FIND HEIGHT OF OBJECT IN IMAGE'''
+        # estimate target pose using bounding box and robot pose
+        target_class = obj_info[0]     # get predicted target label of the box
+        target_box = obj_info[1]       # get bounding box measures: [x,y,width,height]
+        true_height = target_dimensions_dict[target_class][2]   # look up true height of by class label
+        # compute pose of the target based on bounding box info, true object height, and robot's pose
+        pixel_height = target_box[3]
+        pixel_center = target_box[0]
+        distance = true_height/pixel_height * focal_length  # estimated distance between the object and the robot based on height
+        print(f"{target_class} is {distance}m away from the robot")
 
-    # @staticmethod
-    # def draw_pygame_window(canvas, cv2_img, position):
-    #     cv2_img = np.rot90(cv2_img)
-    #     view = pygame.surfarray.make_surface(cv2_img)
-    #     view = pygame.transform.flip(view, True, False)
-    #     canvas.blit(view, position)
-    
-    # @staticmethod
-    # def put_caption(canvas, caption, position, text_colour=(200, 200, 200)):
-    #     caption_surface = TITLE_FONT.render(caption,
-    #                                       False, text_colour)
-    #     canvas.blit(caption_surface, (position[0], position[1]-25))
         
 
 '''

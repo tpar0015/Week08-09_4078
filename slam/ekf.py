@@ -30,6 +30,9 @@ class EKF:
         f_ = f'./pics/8bit/lm_unknown.png'
         self.lm_pics.append(pygame.image.load(f_))
         self.pibot_pic = pygame.image.load(f'./pics/8bit/pibot_top.png')
+
+        # Testing
+        self.no_update_when_360 = True
         
     def reset(self):
         self.robot.state = np.zeros((3, 1))
@@ -132,6 +135,13 @@ class EKF:
         K = self.P @ H.T @ np.linalg.inv(S)
 
         # correct state
+        # if self.no_update_when_360:
+        #     # dont update robot state using slam, just based on covar drive
+        #     robot_pose = x[0:3, 0]
+        #     x = x + K @ (z - z_hat)
+        #     # replace robot pose in x with covar drive
+        #     x[0:3, 0] = robot_pose
+        # else:
         x = x + K @ (z - z_hat)
         P = (np.eye(self.P.shape[0]) - K @ H) @ self.P
         # update
@@ -156,10 +166,11 @@ class EKF:
             print("Robot idle - ", end="")
             print(np.rad2deg(self.robot.state[-1]))
             model_noise = 0
-        # if robot moving
-        else:
+        # if robot driving straight
+        elif raw_drive_meas.left_speed == raw_drive_meas.right_speed:
             model_noise = 0.01
-
+        else:
+            model_noise = 0.03
 
         Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ model_noise*np.eye(3)
         return Q

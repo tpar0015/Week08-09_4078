@@ -249,10 +249,23 @@ class EKF:
         """Predicts covariance of the state after a drive command? """
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
-        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas) + 0.01*np.eye(3)
-        # tune for better? 1cm uncertainty for the state [x, y, theta]
-        # Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)
+        # Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas) + 0.01*np.eye(3)
+        # # tune for better? 1cm uncertainty for the state [x, y, theta]
+        # # Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)
 
+        # return Q
+        # if robot idle
+        if raw_drive_meas.left_speed == 0 and raw_drive_meas.right_speed == 0:
+            print("Robot idle - ", end="")
+            print(np.rad2deg(self.robot.state[-1]))
+            model_noise = 0
+        # if robot driving straight
+        elif raw_drive_meas.left_speed == raw_drive_meas.right_speed:
+            model_noise = 0.01
+        else:
+            model_noise = 0.03
+
+        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas) + model_noise*np.eye(3)
         return Q
 
     def init_landmarks(self, aruco_np_array):

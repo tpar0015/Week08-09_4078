@@ -148,7 +148,7 @@ try:
                 ###########################################################
                 print("###################################")
                 print(f"Next waypoint {waypoint}")
-                operate.drive_to_point(waypoint)
+                operate.drive_to_point(waypoint, waypoint_ctr)
                 operate.stop()
                 # Debugging
                 if args.waypoint_stop: 
