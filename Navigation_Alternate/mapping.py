@@ -68,17 +68,17 @@ class Map:
         for i in range(row_n):
             for j in range(col_n):
                 if i > 0:
-                    nodes[i][j].add_neighbour(nodes[i - 1][j], self.G.distance(nodes[i][j].xy, nodes[i-1][j].xy)) # Up
-                    # nodes[i][j].add_neighbour(nodes[i - 1][j], 1) # Up
+                    # nodes[i][j].add_neighbour(nodes[i - 1][j], self.G.distance(nodes[i][j].xy, nodes[i-1][j].xy)) # Up
+                    nodes[i][j].add_neighbour(nodes[i - 1][j], 1) # Up
                 if i < row_n - 1:
-                    nodes[i][j].add_neighbour(nodes[i + 1][j], self.G.distance(nodes[i][j].xy, nodes[i+1][j].xy))  # Down
-                    # nodes[i][j].add_neighbour(nodes[i + 1][j], 1)  # Down
+                    # nodes[i][j].add_neighbour(nodes[i + 1][j], self.G.distance(nodes[i][j].xy, nodes[i+1][j].xy))  # Down
+                    nodes[i][j].add_neighbour(nodes[i + 1][j], 1)  # Down
                 if j > 0:
-                    nodes[i][j].add_neighbour(nodes[i][j - 1], self.G.distance(nodes[i][j].xy, nodes[i][j-1].xy)) # Left
-                    # nodes[i][j].add_neighbour(nodes[i][j - 1], 1) # Left
+                    # nodes[i][j].add_neighbour(nodes[i][j - 1], self.G.distance(nodes[i][j].xy, nodes[i][j-1].xy)) # Left
+                    nodes[i][j].add_neighbour(nodes[i][j - 1], 1) # Left
                 if j < col_n - 1:
-                    nodes[i][j].add_neighbour(nodes[i][j + 1], self.G.distance(nodes[i][j].xy, nodes[i][j+1].xy)) # Right
-                    # nodes[i][j].add_neighbour(nodes[i][j + 1], 1)
+                    # nodes[i][j].add_neighbour(nodes[i][j + 1], self.G.distance(nodes[i][j].xy, nodes[i][j+1].xy)) # Right
+                    nodes[i][j].add_neighbour(nodes[i][j + 1], 1)
         # Adds nodes to graph
         for i in nodes:
             for j in i:
@@ -96,38 +96,28 @@ class Map:
         Re calibrates map with object blocked out on nodes.
         """
         obs_x, obs_y = obs_xy
-        # obs_x = obs_x + object_size[0]/2
-        # obs_y = obs_y + object_size[1]/2
-        self.G.reset_graph()
+        # self.G.reset_graph()
         closest_node = self.G.get_nearest_node((obs_x, obs_y))
-        # Appends center of obstacles
-        self.center_obstacles.append(closest_node.xy)
-        if is_aruco:
-            self.aruco_num = is_aruco
-        
-        self.obstacle_radius.append(math.hypot(object_size[0]/2, object_size[1]/2))
-        # print(self.obstacle_radius[-1])
         obstacle_nodes = self.G.adjacent_nodes(closest_node, object_size, self.circle_flag)
         obstacle_xy = []
         for node in obstacle_nodes:
             obstacle_xy.append(node.xy)
-        if self.circle_flag:
-            pass
-        else:
-            corners = [(min([x[0] for x in obstacle_xy]) - 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
-                        (min([x[0] for x in obstacle_xy]) - 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
-                        (max([x[0] for x in obstacle_xy]) + 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
-                        (max([x[0] for x in obstacle_xy]) + 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
-                        ]
-            # corners = [(min(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
-            #             (min(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
-            #             (max(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
-            #             (max(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
-            #             ]
-            self.obstacle_corners.append(corners)
+        corners = [(min([x[0] for x in obstacle_xy]) - 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
+                    (min([x[0] for x in obstacle_xy]) - 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
+                    (max([x[0] for x in obstacle_xy]) + 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
+                    (max([x[0] for x in obstacle_xy]) + 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
+                    ]
+        # corners = [(min(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
+                    # (min(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
+                    # (max(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
+                    # (max(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
+                    # ]
+        self.obstacle_corners.append(corners)
         for node in obstacle_nodes:
             if is_fruit:
                 node.is_fruit = True
+            elif is_aruco:
+                node.is_aruco = True
             elif is_target:
                 node.is_target = True
             self.G.set_obstacle(node)
@@ -140,25 +130,18 @@ class Map:
         i = 1
         for aruco in aruco_positions:
             aruco = aruco * 1000
-            # aruco_x = aruco[0] + self.arena_dimensions[0]/2
-            # aruco_y = aruco[1] + self.arena_dimensions[1]/2
-            # aruco = (aruco_x, aruco_y)
-            self.add_obstacles(aruco, self.aruco_size, is_aruco=i)
+            self.G.get_nearest_node(aruco).aruco_num = i
+            self.add_obstacles(aruco, self.aruco_size, is_aruco=True)
             i += 1
 
     def add_fruits_as_obstacles(self):
         fruit_targets = w8.read_search_list(self.shopping_list)
         fruit_list, fruit_pos, _ = w8.read_true_map(self.true_map)
         fruit_coords = w8.print_target_fruits_pos(fruit_targets, fruit_list, fruit_pos)
-        for fruit in fruit_pos:
+        for fruit, name in zip(fruit_pos, fruit_list):
             fruit = fruit * 1000
+            self.G.get_nearest_node(fruit).fruit_name = name
             self.add_obstacles(fruit, (self.fruit_size), is_fruit=True)
-            # if fruit in fruit_coords:
-            #     self.G.get_nearest_node(fruit).is_target = True
-
-        # for fruit in fruit_pos:
-        #     #  Set fruit as obstacles
-        #     pass       
 
 
     def update_path(self, start_node, waypoint) -> None:
@@ -173,7 +156,7 @@ class Map:
             self.path.append(path)
         else:
             print("Cant find waypoint.")
-        self.path[-1] = self.shorten_shortest_path(self.path[-1])
+        self.path = self.shorten_shortest_path()
 
     def get_path_xy(self) -> list:
         """
@@ -222,8 +205,10 @@ class Map:
         """
         line_obstacle_free: Returns true if line segment AB is obstacle free
         """
-        
+        print(self.obstacle_corners)
         for corner in self.obstacle_corners:
+            print(A)
+            print(A.xy, B.xy, corner[0], corner[1], corner[2], corner[3])
             if self.line_intersect(A.xy, B.xy, corner[0], corner[1]) or self.line_intersect(A.xy, B.xy, corner[0], corner[2]) or self.line_intersect(A.xy, B.xy, corner[1], corner[3]) or self.line_intersect(A.xy, B.xy, corner[2], corner[3]):
                 return False
         return True
@@ -246,34 +231,36 @@ class Map:
                     return False
 
 
-    def shorten_shortest_path(self, path) -> None:
+    def shorten_shortest_path(self) -> None:
         """
         Shortens path by removing nodes that are not needed.
         """
         threshold_distance = self.distance_threshold
-        start_node = self.G[eval(path[0])]
-        i = 1
-        while i < len(path) - 1:
-            current_node = self.G[eval(path[i])]
-            
-            # Check if line between start and current node is obstacle free
-            if self.circle_flag:
-                if self.line_obstacle_free_circle(start_node.xy, current_node.xy) and self.G.distance(start_node.xy, current_node.xy) < threshold_distance:
-                    path.pop(i)
+        final_path = []
+        for path in self.path:
 
+            start_node = self.G[eval(path[0])]
+            i = 1
+            while i < len(path) - 1:
+                current_node = self.G[eval(path[i])]
+                
+                # Check if line between start and current node is obstacle free
+                if self.circle_flag:
+                    if self.line_obstacle_free_square(start_node, current_node) and self.G.distance(start_node.xy, current_node.xy) < threshold_distance:
+                        path.pop(i)
+
+                    else:
+                        start_node = current_node
+                        i += 1
                 else:
-                    start_node = current_node
-                    i += 1
-            else:
-                if self.line_obstacle_free_square(start_node, current_node) and self.G.distance(start_node.xy, current_node.xy) < threshold_distance:
-                    path.pop(i)
+                    if self.line_obstacle_free_square(start_node, current_node) and self.G.distance(start_node.xy, current_node.xy) < threshold_distance:
+                        path.pop(i)
 
-                else:
-                    start_node = current_node
-                    i += 1
-
-        return path
-
+                    else:
+                        start_node = current_node
+                        i += 1
+            final_path.append(path)
+        return final_path
     def get_targets(self):
         fruit_targets = w8.read_search_list(self.shopping_list)
         fruit_list, fruit_pos, _ = w8.read_true_map(self.true_map)
@@ -287,9 +274,77 @@ class Map:
                 self.update_path(self.G[eval(self.path[-1][-1])], target_fruit)
             self.G.reset_graph()
 
-            
+    def draw_arena_v2(self):
+        G_img = nx.Graph()
+        node_attributes = {}
+        edge_attributes = {}
+        max_x = self.arena_dimensions[0]/2
+        max_y = self.arena_dimensions[1]/2
+        G_img.add_node("A")
+        node_attributes["A"] = {"pos": (-max_x, -max_y), "size": 10, "color": "black"}
+        G_img.add_node("B")
+        node_attributes["B"] = {"pos": (max_x, -max_y), "size": 10, "color": "black"}
+        G_img.add_node("C")
+        node_attributes["C"] = {"pos": (max_x, max_y), "size": 10, "color": "black"}
+        G_img.add_node("D")
+        node_attributes["D"] = {"pos": (-max_x, max_y), "size": 10, "color": "black"}
+        G_img.add_edges_from([("A", "B"), ("B", "C"), ("C", "D"), ("D", "A")])
+        edge_attributes[("A", "B")] = {"color": "black", "width": 1}
+        edge_attributes[("B", "C")] = {"color": "black", "width": 1}
+        edge_attributes[("C", "D")] = {"color": "black", "width": 1}
+        edge_attributes[("D", "A")] = {"color": "black", "width": 1}
+
+        flattened_path = []
+        for path in self.path:
+            for node in path:
+                flattened_path.append(node)
+
+        # Remove duplicates that are adjacent
+        flattened_path = [flattened_path[i] for i in range(1,len(flattened_path))if flattened_path[i] != flattened_path[i-1]]
+        # Add Nodes and their attributes
+        for node_name in self.G.nodes:
+            node = self.G[eval(node_name)]
+            # Add Fruit colors
+            if node.fruit_name is not None:
+                G_img.add_node(node.name)
+                node_attributes[node.name] = {"pos":node.xy, "label": node.fruit_name, "color": "orange", "size": 20}
+            elif node.aruco_num != -1:
+                G_img.add_node(node.name)
+                node_attributes[node.name] = {"pos": node.xy, "label": node.aruco_num, "color": "green", "size": 20}
+            elif node.is_aruco:
+                G_img.add_node(node.name)
+                node_attributes[node.name] = {"pos": node.xy, "color": "green", "size": 20}
+            elif node.is_fruit:
+                G_img.add_node(node.name)
+                node_attributes[node.name] = {"pos": node.xy, "color": "orange", "size": 20}
+            elif node.name in flattened_path:
+                G_img.add_node(node.name)
+                node_attributes[node.name] = {"pos": node.xy, "color": "red", "size": 20}
+
+            else:
+                G_img.add_node(node.name)
+                node_attributes[node.name] = {"pos": node.xy, "color": "lightgrey", "size": 20}
+
+        # Add Edges and their attributes
+        for i in range(1,len(flattened_path)):
+            G_img.add_edge(flattened_path[i-1], flattened_path[i])
+            edge_attributes[(flattened_path[i-1], flattened_path[i])] = {"color": "red", "width": 3}
+        nx.set_node_attributes(G_img, node_attributes)
+        nx.set_edge_attributes(G_img, edge_attributes)
+        positions = {node: data["pos"] for node, data in G_img.nodes(data=True)}
+        labels = {node: data["label"] for node, data in G_img.nodes(data=True) if "label" in data}
+        colors = [data["color"] for node, data in G_img.nodes(data=True)]
+        sizes = [data["size"] for node, data in G_img.nodes(data=True)]
+        edge_colors = [data["color"] for u, v, data in G_img.edges(data=True)]
+        nx.draw_networkx_labels(G_img, pos=positions, labels=labels)
+        nx.draw_networkx_nodes(G_img, pos=positions, node_color=colors, node_size=sizes)
+        nx.draw_networkx_edges(G_img, pos=positions, edge_color=edge_colors)
+        plt.show()
+
     def draw_arena(self, draw_path=True) -> None:
-        """draw_arena: Draws arena as graph"""
+        """draw_arena: Draw        # for fruit in fruit_pos:
+        #     #  Set fruit as obstacles
+        #     pass       s arena as graph"""
         G_img = nx.DiGraph()
         node_labels = {}
         # Draw Nodes
@@ -413,10 +468,15 @@ class Map:
 
 
 if __name__ == '__main__':
-    map_test = Map((3000, 3000), 50, true_map="est_truth_map.txt", shopping_list="M5_shopping_list.txt", distance_threshold=350, aruco_size=(300,300), fruit_size=(300,300))
+    map_test = Map((3000, 3000), 50, true_map="est_truth_map.txt", shopping_list="shopping.txt", distance_threshold=float('inf'), aruco_size=(500,500), fruit_size=(500,500))
     map_test.generate_map()
+    map_test.circle_flag = True
     map_test.add_aruco_markers()
     map_test.add_fruits_as_obstacles()
     map_test.get_targets()
-    map_test.draw_arena(draw_path=False)
+    # test_node = map_test.G.get_nearest_node((0,980))
+    # test_node.fruit_name = 'test'
+    # test_node.is_fruit = True
+    # map_test.add_obstacles(test_node.xy,(500,500), is_aruco=True,)
+    map_test.draw_arena_v2()
     
