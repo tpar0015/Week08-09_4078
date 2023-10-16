@@ -7,7 +7,7 @@ from pibot import PenguinPi
 
 
 
-def calibrateWheelRadius():
+def calibrateWheelRadius(dist):
     # Compute the robot scale parameter using a range of wheel velocities.
     # For each wheel velocity, the robot scale parameter can be computed
     # by comparing the time and distance driven to the input wheel velocities.
@@ -17,7 +17,7 @@ def calibrateWheelRadius():
     ##########################################
     wheel_velocities_range = range(20, 80, 15)
     delta_times = []
-    length_calibration = 0.5  # meters
+    length_calibration = dist  # meters
 
     for wheel_vel in wheel_velocities_range:
         print("Driving at {} ticks/s.".format(wheel_vel))
@@ -62,6 +62,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
+    parser.add_argument("--dist", metavar='', type=int, default=1)
     args, _ = parser.parse_known_args()
 
     ppi = PenguinPi(args.ip,args.port)
@@ -70,7 +71,7 @@ if __name__ == "__main__":
     dataDir = "{}/param/".format(os.getcwd())
 
     print('Calibrating PiBot scale...\n')
-    scale = calibrateWheelRadius()
+    scale = calibrateWheelRadius(args.dist)
     fileNameS = "{}scale.txt".format(dataDir)
     np.savetxt(fileNameS, np.array([scale]), delimiter=',')
 

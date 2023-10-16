@@ -20,7 +20,9 @@ from PIL import Image
 class Map:
     """Generates map o arena, navigates shortest path. Online updating of path
     with detected obstacles factored in"""
-    def __init__(self, arena: tuple, radius: float, true_map: str, shopping_list: str, aruco_size = (300,300), fruit_size = (300,300), distance_threshold=200):
+    def __init__(self, arena: tuple, radius: float, true_map: str, shopping_list: str, 
+                 aruco_size = (300,300), fruit_size = (300,300), distance_threshold=200,
+                 plot=True):
         """
         Initializes variables
         """
@@ -39,6 +41,7 @@ class Map:
         self.aruco_size = aruco_size
         self.fruit_size = fruit_size
         self.circle_flag = False
+        self.plot = plot
 
     def generate_map(self):
         """
@@ -103,6 +106,7 @@ class Map:
             self.aruco_num = is_aruco
         
         self.obstacle_radius.append(math.hypot(object_size[0]/2, object_size[1]/2))
+        # print(self.obstacle_radius[-1])
         obstacle_nodes = self.G.adjacent_nodes(closest_node, object_size, self.circle_flag)
         obstacle_xy = []
         for node in obstacle_nodes:
@@ -394,21 +398,17 @@ class Map:
                 edge_colors.append("black")
                 edge_width.append(1)
 
-        print(
-            
-        )
-        # nx.draw(G_img, pos=node_positions, node_size=node_sizes, with_labels=False, node_color=node_colors, edge_color=edge_colors, width=edge_width)
-        print(edge_colors)
-        nx.draw_networkx_edges(G_img, pos=node_positions, edge_color=edge_colors, width=edge_width, arrows=True, arrowsize=5)
-        nx.draw_networkx_nodes(G_img, pos=node_positions, node_size=node_sizes, node_color=node_colors)
-        plt.show()
-        # Figure size
-        fig = plt.gcf()
-        fig.set_size_inches(18.5, 10.5)
 
-        plt.savefig("djikstras_map.png")
-        # Display Image
-        # img = Image.open('djikstras_map.png')
+        nx.draw(G_img, pos=node_positions, node_size=node_sizes, with_labels=False, node_color=node_colors, edge_color=edge_colors, width=edge_width)
+        if self.plot:
+            plt.show()
+            # Figure size
+            fig = plt.gcf()
+            fig.set_size_inches(18.5, 10.5)
+        else:
+            plt.savefig("djikstras_map.png")
+            # Display Image
+            # img = Image.open('djikstras_map.png')
         
 
 

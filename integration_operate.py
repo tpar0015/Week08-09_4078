@@ -28,22 +28,32 @@ from operate_m4_navi import Operate
 
 
 parser = argparse.ArgumentParser()
+
+# Must have argument
+parser.add_argument("map", type=str, help='Full Map')
+parser.add_argument("shop", type=str, help='Shopping list')
+
 parser.add_argument("--ip", metavar='', type=str, 
                     default='192.168.50.1')
                     # default='localhost')
 parser.add_argument("--port", metavar='', type=int, 
                     default=8080)
                     # default=40000)
-parser.add_argument("--calib_dir", type=str, default="calibration/param/")
+parser.add_argument("--calib_dir", metavar='', type=str, default="calibration/param/")
 parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
-parser.add_argument("--map", type=str, default='map/M4_prac_map_full.txt')
-parser.add_argument("--shop", type=str, default='M5_shopping_list.txt')
+# For navi
+parser.add_argument("--aruco_size", metavar='',  type=int, default=500)
+parser.add_argument("--fruit_size", metavar='', type=int, default=400)  # Entire Robot is within 0.5 from fruit centre
+parser.add_argument("--waypoint_threshold", metavar='', type=int, default=100)
+# For control
+parser.add_argument("--turn_tick", metavar='', type=int, default=20)
+parser.add_argument("--tick", metavar='', type=int, default=40)
+# For debug
 parser.add_argument("--plot", type=int, default=1)
-parser.add_argument("--aruco_size", type=int, default=500)
-parser.add_argument("--fruit_size", type=int, default=500)
-parser.add_argument("--waypoint_threshold", type=int, default=200)
-args, _ = parser.parse_known_args()
+parser.add_argument("--waypoint_stop", type=int, default=0)
+
+args = parser.parse_args()
 
 # read in the true map
 fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
@@ -58,13 +68,22 @@ start = 1
 ############################################################
 try:
     if a_star_navi:
-        arena = Map((3000,3000), 50, true_map=args.map, shopping_list=args.shop, aruco_size=(args.aruco_size,args.aruco_size), fruit_size=(args.fruit_size, args.fruit_size), waypoint_threshold=args.waypoint_threshold)
+        arena = Map((2700,2700), 50, 
+                    true_map=args.map, shopping_list=args.shop, 
+                    aruco_size=(args.aruco_size,args.aruco_size), 
+                    fruit_size=(args.fruit_size, args.fruit_size), 
+                    distance_threshold=args.waypoint_threshold,
+                    plot=args.plot  # save as image instead of plotting
+                    )
         arena.generate_map()
         arena.add_aruco_markers()
         arena.add_fruits_as_obstacles()
         arena.get_targets()
         arena.draw_arena(draw_path=True)
         path = arena.get_path_xy()
+        # Ignore the first 0.0, 0.0
+        path[0] = path[0][1:]
+        
         
     if bug2_navi: 
     # create a list start from 1 to 10
@@ -108,18 +127,16 @@ try:
     if start:
         
         operate = Operate(args, gui = False)
-        # operate.stop()
-        
+        operate.stop()
         operate.prompt_start_slam(aruco_true_pos)
 
-        # for fruit, path in waypoint.items():
-        #     # Ignore first waypoint
-        #     for waypoint in path[1:]:
-        
-        waypoint_count = 0
-
+        waypoint_ctr = 0
+        update_slam_flag = False
+        # Iterate through each path in from navigation planning
         for one_path in path:
+            # Iterate through each waypoint of each path to target fruit (in shopping order)
             for waypoint_mm in one_path:
+                waypoint_ctr += 1
                 # Convert to m
                 waypoint = []
                 for coor in waypoint_mm:
@@ -129,16 +146,14 @@ try:
                 # 1. Robot drives to the waypoint
                 # 2. Update robot pose using SLAM (during turn and drive)
                 ###########################################################
-                print(f"\nNext waypoint {waypoint}")
+                print("###################################")
+                print(f"Next waypoint {waypoint}")
                 operate.drive_to_point(waypoint)
                 operate.stop()
                 # Debugging
-                pose = operate.get_robot_pose()
-                x = pose[0]
-                y = pose[1]
-                theta = np.rad2deg(pose[2])
-                print(f"---> ROBOT pose: [{x} {y} {theta}]")
-                # input("Enter to continue")
+                if args.waypoint_stop: 
+                    operate.print_robot_pose()
+                    input("Enter to continue")
 
             ###########################################################
             # 3. When reach the target, wait and continue

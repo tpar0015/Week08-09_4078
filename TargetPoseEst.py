@@ -39,7 +39,12 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     target_dimensions_dict = {'Orange': [0.075,0.075,0.073], 'Lemon': [0.08,0.05,0.05], 
                               'Lime': [0.08,0.05,0.05], 'Tomato': [0.07,0.07,0.065], 
                               'Capsicum': [0.095,0.085,0.085], 'Potato': [0.11,0.06,0.062], 
-                              'Pumpkin': [0.07,0.085,0.075], 'Garlic': [0.08,0.065,0.075]}
+                              'Pumpkin': [0.07,0.085,0.075], 'Garlic': [0.08,0.065,0.075], 
+
+
+                              'orange': [0.075,0.075,0.073], 'lemon': [0.08,0.05,0.05],
+                              'pear': [0,0,0.09], 'berry': [0,0,0.038], 'mango': [0,0,0.057], 
+                              'apple': [0,0,0.088], 'pine': [0,0,0.038]}
     
     # pumkin include stem
     # capsicum include stem
@@ -96,7 +101,8 @@ def merge_estimations(target_pose_dict):
     ###############################################################################
     # TODO: 1. Create dict to first, store ALL the detected coor of each fruit type
     ###############################################################################
-    fruit_est_dict = {'orange':[],'lemon':[],'lime':[],'tomato':[],'capsicum':[],'potato':[],'pumpkin':[],'garlic':[]}
+    fruit_est_dict = {'orange':[],'lemon':[],'lime':[],'tomato':[],
+                      'capsicum':[],'potato':[],'pumpkin':[],'garlic':[]}
 
     # Combine the estimations from multiple detector outputs
     for name, coor in target_pose_dict.items():
@@ -195,7 +201,8 @@ if __name__ == "__main__":
     '''Replace model here'''
     # model_path = f'{script_dir}/YOLO/model/yolov8_model.pt'
     # model_path = f'{script_dir}/YOLO/model/best_4_Sep.pt'
-    model_path = f'{script_dir}/YOLO/model/latest_model.pt'
+    # model_path = f'{script_dir}/YOLO/model/latest_model.pt'
+    model_path = f'{script_dir}/YOLO/model/nhnh_model.pt'
     yolo = Detector(model_path)
 
     # create a dictionary of all the saved images with their corresponding robot pose

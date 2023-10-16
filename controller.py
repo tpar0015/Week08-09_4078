@@ -7,6 +7,7 @@ import slam_rehaul.aruco_detector as aruco
 from util.pibot import PenguinPi
 import util.measure as measure
 from gui import GUI
+
 class RobotControl:
     def __init__(self, args):
         ## Robot Parameters

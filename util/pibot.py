@@ -8,14 +8,14 @@ import urllib.request
 
 
 class PenguinPi:
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, tick = 30, turning_tick = 10): # default speed for good SLAM est
+
         self.ip = ip
         self.port = port
         self.wheel_vel = [0, 0]
         
-        ''' Bill modified this - 15 Sep'''
-        self.tick = 30
-        self.turning_tick = 10
+        self.tick = tick
+        self.turning_tick = turning_tick
 
     ##########################################
     # Change the robot velocity here
