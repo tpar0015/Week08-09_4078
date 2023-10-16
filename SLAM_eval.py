@@ -99,8 +99,6 @@ if __name__ == '__main__':
     gt_aruco = parse_groundtruth(args.groundtruth)
     us_aruco = parse_user_map(args.estimate)
 
-    print(us_aruco)
-
     taglist, us_vec, gt_vec = match_aruco_points(us_aruco, gt_aruco)
 
 
@@ -124,18 +122,21 @@ if __name__ == '__main__':
     print("np.array(\n"+np.array2string(gt_vec, precision=4, separator=',')+')')
     print("Aligned Pred Locations")
     print("np.array(\n"+np.array2string(us_vec_aligned, precision=4, separator=',')+')')
+    print("UN-aligned Pred locations")
+    print("np.array(\n"+np.array2string(us_vec, precision=4, separator=',')+')')
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
 
-    print("debug - coor appear with y first\n")
-    print("user aruco slam:")
-    for tag, coor in us_aruco.items():
-        x = coor[0]
-        y = coor[1]
-        print(tag, y, x)
-    print("aligned:")
-    print(us_vec_aligned)
+    # print("debug - coor appear with y first\n")
+    # print("user aruco slam:")
+    # for tag, coor in us_aruco.items():
+    #     x = coor[0]
+    #     y = coor[1]
+    #     print(tag, y, x)
+    # print("aligned:")
+    # print(us_vec_aligned)
     print("\n\n")
+    
     # Write the aligned pred locations to a file named "aruco_est_pose.txt"
     # # Follow this format
     # '''

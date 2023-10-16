@@ -1,5 +1,4 @@
-orange
-lime
+pine
 lemon
 mango
 pear

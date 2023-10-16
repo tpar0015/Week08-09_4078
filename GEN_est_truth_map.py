@@ -48,12 +48,10 @@ def generate_est_truth_map():
     if os.path.exists('est_truth_map.txt'):
         os.remove('est_truth_map.txt')
 
-
     # add the aruco_est_pose.txt (formatted with comma instead of last "}")
     with open('lab_output/aruco_est_pose.txt','r') as f0, open('est_truth_map.txt','a') as f1:      
         for line in f0:
             f1.write(line)
-
     # and add the fruit_est.txt (formatted without first "{")
     with open('lab_output/fruit_est_pose.txt','r') as f0, open('est_truth_map.txt','a') as f1:
         for line in f0:
@@ -104,7 +102,8 @@ if __name__ == '__main__':
     camera_matrix = np.loadtxt(fileK, delimiter=',')
 
     # init YOLO model
-    model_path = f'{script_dir}/YOLO/model/latest_model.pt'
+    # model_path = f'{script_dir}/YOLO/model/latest_model.pt'
+    model_path = f'{script_dir}/YOLO/model/nhnh_model.pt'
     yolo = Detector(model_path)
 
     # create a dictionary of all the saved images with their corresponding robot pose
@@ -126,6 +125,7 @@ if __name__ == '__main__':
         robot_pose = image_poses[image_path]
 
         for detection in bounding_boxes:
+            # print(detection)
             # count the occurrence of each target type
             occurrence = detected_type_list.count(detection[0])
             # lower case is used to match the names format
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         fo.seek(0, 0)
         fo.write(content[1:-1])
     
-    print('fruit_est_pose.txt saved!')
+    print('\nfruit_est_pose.txt created!')
 
     us_aruco = parse_user_map(args.slam)
 

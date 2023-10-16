@@ -5,8 +5,9 @@ Question to be test:
 - deal with robot reach boundary
 	- make boundary smaller? --> test more
 
-@@@ partially resolved @@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@
+- direction and how much to rotate - localise_360 !!!!!!!!!!!
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 - When is the best time to save SLAM
 	- if re-see twice --> from different angle where SINGLE lms (before) get to see with others - linking --> improve
 	- if more --> geting worse
@@ -14,7 +15,6 @@ Question to be test:
 - Noise = 0.01 added to state if robot not idle
 	- No more noises added when robot idle! - SLAM remain same
 	- 
-
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 LOG:

@@ -51,6 +51,7 @@ class Operate:
             self.data = None
         ####################################################################
         self.flag = False
+        self.high_speed = False
 
         # self.stopUpdateLM = False
         ####################################################################
@@ -81,7 +82,7 @@ class Operate:
             self.detector = None
             self.yolo_vis = cv2.imread('pics/8bit/detector_splash.png')
         else:
-            self.detector = Detector(args.yolo_model)
+            self.detector = Detector("YOLO/model/" + args.yolo_model)
             self.yolo_vis = np.ones((240, 320, 3)) * 100
         self.bg = pygame.image.load('pics/gui_mask.jpg')
 
@@ -299,13 +300,28 @@ class Operate:
             # continuously save image per loop_interval
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
                 self.flag = not self.flag
+            # press V to change speed between M2 and M3
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_v:
+                if self.high_speed:
+                    # Switch to LOW speed
+                    self.notification = 'Changed speed to LOW SPEED'
+                    self.high_speed = False
+                    self.command['motion'] = [0, 0]
+                    self.pibot.tick = 30
+                    self.pibot.turning_tick = 10
+                else:
+                    # Switch to HIGH speed
+                    self.notification = 'Changed speed to HIGH SPEED'
+                    self.high_speed = True
+                    self.command['motion'] = [0, 0]
+                    self.pibot.tick = 50
+                    self.pibot.turning_tick = 20
             ######################################################################
         
             # save SLAM map
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-                self.command['output'] = True
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                # self.stopUpdateLM = True
+                self.command['output'] = True
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -362,9 +378,7 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    # parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
-    # parser.add_argument("--yolo_model", default='YOLO/model/best_4_Sep.pt')
-    parser.add_argument("--yolo_model", default='YOLO/model/latest_model.pt')
+    parser.add_argument("--yolo_model", default='latest_model.pt')
 
     args, _ = parser.parse_known_args()
 
@@ -418,7 +432,6 @@ if __name__ == "__main__":
         drive_meas = operate.control()
         operate.update_slam(drive_meas)
         operate.record_data()
-        
         
         # Check if 1 second has passed
         if pygame.time.get_ticks() - current_time >= loop_interval:

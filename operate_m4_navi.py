@@ -46,7 +46,7 @@ class Operate:
         if args.play_data:
             self.pibot = dh.DatasetPlayer("record")
         else:
-            self.pibot = PenguinPi(args.ip, args.port, tick = 40, turning_tick = 20)
+            self.pibot = PenguinPi(args.ip, args.port, args.tick, args.turn_tick)
         # 
         if args.save_data:
             self.data = dh.DatasetWriter('record')
@@ -66,6 +66,16 @@ class Operate:
         # Used to computed dt for measure.Drive
         self.control_clock = time.time()
 
+        # Improving slam ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # waypoint where SLAM update step can start - to ignore weird SLAM update initially
+        self.confident_waypoints = 3
+        # threshold for when robot should do 360 self localisation
+        # self.unsafe_wp_threshold = 3
+        # count the number of waypoint that robot moving with unsafe mode (detect <=1 landmarks)
+        self.safe_waypoint = 100 #arbitrary big number for starting
+
+        self.unsafe_waypoint = 0
+        self.unsafe_threshold = 3
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         self.image_id = 0
@@ -84,9 +94,6 @@ class Operate:
         # Use self.command to use self.control func inside POLLING loop
         self.command = {'motion': [0, 0]}
         # self.control_time = 0
-
-        self.turn_vel = 10
-        self.wheel_vel = 40
 
 
         if gui:
@@ -128,7 +135,9 @@ class Operate:
     '''
 
     # SLAM with ARUCO markers       
-    def update_slam(self, drive_meas, print_period= 0):
+    # def update_slam(self, drive_meas, slam_update_flag=True, weight=0):
+    def update_slam(self, drive_meas):
+        print_period = 0
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
 
         if self.request_recover_robot: pass
@@ -136,41 +145,19 @@ class Operate:
             self.ekf.predict(drive_meas, print_period)
             # self.ekf.add_landmarks(lms) # <----------- DONT NEED THIS
             for lm in lms:
+                # Remove those error detection
                 if lm.tag not in range(1, 11):
                     lms.remove(lm)
-                # print("\n#~#~#~#~#~#~#~#~#~")
-                # '''Check detected aruco'''
-                # print(f"{lm.tag}--", end="")
-                # print("\n#~#~#~#~#~#~#~#~#~")
 
-            unsafe_mode_flag = False
-            # Adjust the Kalman gain if only detect 1 landmark --> unsafe
-            if len(lms) == 1:
-                unsafe_mode_flag = True
-                # print("x_x")
-            elif len(lms) >= 2:
-                print("safe")
-                unsafe_mode_flag = False
-            # if len = 0 - already accounted for in EKF.update()
-            # if len(lms) == 0:
-                # print(f"{unsafe_mode_flag} !!!!!!!!!!!!!!!!!!!!")
-            self.ekf.update(lms, unsafe_mode_flag, print_period)
+                if lm.dist <= 0.2:
+                    print("!!! Alerted - about to collide with landmarks !!!")
+                    input("Enter to continue")
 
-            ''' TUNE THIS LATER'''
-            # # Check if it has been using lms_seen_to_update = 2 for too long
-            # if time.time() - self.risky_update_clock > 7:
-            #     lms_seen_to_update = 1
-            
-            # if (time.time() - self.safe_update_clock >= 5) and (lms_seen_to_update == 1):
-            #     lms_seen_to_update = 2
+            # unsafe_mode_flag = True
+            # adjust_weight = 1
+            self.ekf.update(lms, print_period=print_period)
 
-            # # Only update if see >1 landmark
-            # if len(lms) >= lms_seen_to_update:
-            #     self.ekf.update(lms, print_period)
-            # # If cannot update, start the clock
-            # elif lms_seen_to_update == 2:
-            #     self.risky_update_clock = time.time()
-
+        return len(lms)
 
     # wheel and camera calibration for SLAM
     def init_ekf(self, datadir, ip):
@@ -202,13 +189,18 @@ class Operate:
     ######################      From M4     ######################################
     ##############################################################################
     '''
-    def get_robot_pose(self, debug = True):
+    def get_robot_pose(self):
         x = self.ekf.robot.state[0]
         y = self.ekf.robot.state[1]
         theta = self.ekf.robot.state[2]
-        
-        # print(f"get robot pose {np.rad2deg(theta)}")
         return self.ekf.robot.state[0:3, 0]
+    
+    def print_robot_pose(self):
+        pose = self.get_robot_pose()
+        x = pose[0]
+        y = pose[1]
+        theta = np.rad2deg(pose[2])
+        print(f"---> ROBOT pose: [{x} {y} {theta}]")
 
     ####################################################################################
 
@@ -216,7 +208,7 @@ class Operate:
         angle_to_waypoint = np.arctan2((end_point[1]-start_pose[1]),(end_point[0]-start_pose[0])) # rad
         return angle_to_waypoint
     
-    def reach_close_point(self, current_pose_xy, point_xy, threshold = 0.01):
+    def reach_close_point(self, current_pose_xy, point_xy, threshold = 0.05):
         dist = np.linalg.norm(current_pose_xy[0:2] - point_xy[0:2])
         if dist < threshold:
             return True
@@ -224,57 +216,98 @@ class Operate:
             return False
 
     def control(self):    
-
         lv, rv = self.pibot.set_velocity(self.command['motion'])
-            
         if not self.data is None:
             self.data.write_keyboard(lv, rv)
         
         dt = time.time() - self.control_clock
-        
         # running on physical robot (right wheel reversed)
         drive_meas = measure.Drive(lv, -rv, dt)
         self.control_clock = time.time()
         return drive_meas
 
+    # Rotate 360 to accurately self localise
+    def localise_360(self):
+        self.stop()
+        print("Robot pose before: ")
+        self.print_robot_pose()
+        print("Do 360 for self-localising")
+        # Get params
+        scale = self.ekf.robot.wheels_scale
+        baseline = self.ekf.robot.wheels_width
+        # Compute
+        tmp = self.pibot.turning_tick
+        self.pibot.turning_tick = 10 #for better aruco detection
+        turn_360_time = baseline/2 * (2*np.pi) / (scale * self.pibot.turning_tick)
+        # Rotate at spot
+        self.command['motion'] = [0, 1]
+        turn_360_time += time.time()
+
+        while time.time() <= turn_360_time:
+            self.take_pic()
+            drive_meas = self.control()
+            self.update_slam(drive_meas, weight=0.3)
+        # Reset speed
+        self.pibot.turning_tick = tmp
+        self.stop();
+
+        print("Just finish 360 turn, current pose: ")
+        self.print_robot_pose()
+        input("Done, continue the navi?\n")
+
 
     def drive_to_point(self, waypoint):
-        start_pose = self.get_robot_pose()
         turn_time = self.get_turn_time(waypoint)
         drive_time = self.get_drive_time(waypoint)
-
+        #################################################
+        print(f"Turn for {turn_time}")
         # Set turn velocity
         if turn_time < 0:
             turn_time *= -1
             self.command['motion'] = [0, -1]
         else:
             self.command['motion'] = [0, 1]
-
         # Turn at spot
         turn_time += time.time()
         self.control_clock = time.time()
-
+        
+        localise_flag = True    
         while time.time() <= turn_time:
             self.take_pic()
             drive_meas = self.control()
-            self.update_slam(drive_meas, print_period = 0)
+            # if slam_update_flag:
+            lms_detect = self.update_slam(drive_meas)
+            if lms_detect != 0:
+                localise_flag = False
+        # print(f"from turn: {unsafe_mode_flag_1}")
         self.stop()
-
+        ##################################################
+        print(f"Drive for {drive_time}")
         # Set drive velocity
         self.command['motion'] = [1, 0]
         # Drive straight
         drive_time += time.time()
+
         while time.time() <= drive_time:
             self.take_pic()
             drive_meas = self.control()
-            self.update_slam(drive_meas, print_period = 0)
+            # if slam_update_flag:
+            lms_detect = self.update_slam(drive_meas)
+            if lms_detect != 0:
+                localise_flag = False
             # Prevent passing the distance, resulting in TURNING OVER
             if self.reach_close_point(self.get_robot_pose()[:2], waypoint, threshold=0.03):
                 break
-
         self.stop()
-        print("\n")
-        # print(f"Just turned {np.rad2deg(self.get_point_angle_relate_world(start_pose, waypoint))} degree\n----\n")
+        
+        ###########################################################################
+        # if 0 landmarks detected throughout the drive_to_waypoint
+        if localise_flag:
+                self.unsafe_waypoint += 1
+                
+        if self.unsafe_waypoint == self.unsafe_threshold:
+                self.localise_360()
+                self.unsafe_waypoint = 0
 
 
     def get_turn_time(self, waypoint):
@@ -282,7 +315,6 @@ class Operate:
         scale = self.ekf.robot.wheels_scale
         baseline = self.ekf.robot.wheels_width
         robot_pose = self.get_robot_pose()
-
         # Angle in WORLD FRAME
         angle_to_waypoint = np.arctan2((waypoint[1]-robot_pose[1]), (waypoint[0]-robot_pose[0]))
         # Angle in ROBOT FRAME
@@ -292,16 +324,13 @@ class Operate:
             robot_angle = -2*np.pi + robot_angle
         elif (robot_angle < -np.pi):
             robot_angle = 2*np.pi + robot_angle
-
+        # Debug
         print(f"POINT angle: {np.rad2deg(angle_to_waypoint)}")
-        print(f"ROBOT theta: {np.rad2deg(robot_pose[2])}")
-        print(f"==> turn: {np.rad2deg(robot_angle)}\n")
-
-        if abs(robot_angle) > np.pi/3:
-            print("Turning BIG angle !!!!!!!!!!!!!!")
-
-        # Compute
-        turn_time = baseline/2 * robot_angle / (scale * self.turn_vel)
+        # print(f"ROBOT theta: {np.rad2deg(robot_pose[2])}")
+        # print(f"==> turn: {np.rad2deg(robot_angle)}\n")
+        # if abs(robot_angle) > np.pi/3:
+        #     print("Turning BIG angle !!!!!!!!!!!!!!")
+        turn_time = baseline/2 * robot_angle / (scale * self.pibot.turning_tick)
         return turn_time
 
 
@@ -315,11 +344,9 @@ class Operate:
         # after turning, drive straight to the waypoint
         # print(f"DEBUG: {waypoint, robot_pose}")
         robot_dist = ((waypoint[1]-robot_pose[1])**2 + (waypoint[0]-robot_pose[0])**2)**(1/2)
-        drive_time = robot_dist / (scale * self.wheel_vel)
-
+        drive_time = robot_dist / (scale * self.pibot.tick)
         # print(f"Distance to drive: {robot_dist}")
         # print("--------------------------------")
-
         return drive_time
 
 

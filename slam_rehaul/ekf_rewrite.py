@@ -134,7 +134,7 @@ class EKF:
             # input("2s passed, enter to continue")
             self.print_clock = time.time()
             self.print_flag  = True
-            print(f"Predict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+            print(f"\nPredict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
 
     '''
     Input:
@@ -153,7 +153,7 @@ class EKF:
         - Added map lock by Christopher
         - Added logging by Christopher
     '''
-    def update(self, measurements, unsafe_mode = False, print_period = False):
+    def update(self, measurements, unsafe_mode = False, print_period = False, adjust_weight=1):
         if not measurements:
             return
 
@@ -175,7 +175,6 @@ class EKF:
             # x3  -   -   -   -   s3 
             R[2*i:2*i+2, 2*i:2*i+2] = measurements[i].covariance # return from ARUCO_DET()
 
-        
         # Measurement
         z_hat = self.robot.measure(self.markers, idx_list)
         z_hat = z_hat.reshape((-1,1),order="F")
@@ -189,9 +188,7 @@ class EKF:
         # S = H_x @ P @ H_x.T + H_w @ R @ H_w.T
         # Kalman gain:
         K = self.P @ H.T @ np.linalg.inv(S)
-
         x = self.get_state_vector()
-
         ############
         ## freeze the position of the landmarks!
         ## this will need to be met with real life tuning
@@ -204,16 +201,11 @@ class EKF:
         mask = mask.squeeze()
 
         # measurement_update_weight = 0.2
-
         '''Correct State'''
         if self.lock_map:
             # Only update robot pose
-            if unsafe_mode:
-                # apply weight - lesss update on robot state
-                x[mask] = x[mask] + 0.77* np.dot(K[mask], (z - z_hat))
-            else:
-                x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
-        
+            x[mask] = x[mask] + adjust_weight * np.dot(K[mask], (z - z_hat))
+            # Previous, adjust_weight = 0.77 for "unsafe" mode - when detect <2 landmarks
         else:
             # Original code where x is updated based on measurement
             x = x + K @ (z - z_hat)
@@ -233,7 +225,7 @@ class EKF:
         if self.print_flag and print_period:
             # input("2s passed, enter to continue")
             self.print_flag = False
-            print(f"~~Update: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+            print(f"\n--> Update: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
         ## ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         ## logging/monitoring
         
