@@ -31,7 +31,7 @@ class Map:
         self.radius = radius
         self.center_obstacles = []
         self.obstacle_radius = []
-        self.G = Graph()
+        self.G = Graph(arena)
         self.location = (0,0,0)
         self.path = []
         self.object_size = (250,90)
@@ -108,12 +108,8 @@ class Map:
                     (max([x[0] for x in obstacle_xy]) + 1*self.radius, min([x[1] for x in obstacle_xy]) - 1*self.radius),
                     (max([x[0] for x in obstacle_xy]) + 1*self.radius, max([x[1] for x in obstacle_xy]) + 1*self.radius),
                     ]
-        # corners = [(min(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
-                    # (min(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
-                    # (max(x[0] for x in obstacle_xy), min(x[1] for x in obstacle_xy)),
-                    # (max(x[0] for x in obstacle_xy), max(x[1] for x in obstacle_xy)),
-                    # ]
         self.obstacle_corners.append(corners)
+
         for node in obstacle_nodes:
             if is_fruit:
                 node.is_fruit = True
@@ -159,6 +155,7 @@ class Map:
         if end_node is not None:
             self.G.djikstras(start_node, end_node)
             _, path = self.G.get_shortest_distance(end_node)
+            # path = self.G.a_star(start_node, end_node)
             path.insert(0,start_node.name)
             self.path.append(path)
         else:
