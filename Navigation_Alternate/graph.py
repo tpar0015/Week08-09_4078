@@ -35,8 +35,9 @@ class Graph:
     Contains graph module, with shortest path methods.
     """
 
-    def __init__(self):
+    def __init__(self, arena_dimensions):
         self.nodes = {}
+        self.arena_dimensions = arena_dimensions
 
     def add_node(self, node: Node):
         self.nodes[node.name] = node
@@ -70,16 +71,23 @@ class Graph:
     def get_nearest_node(self, pos):
         """get_nearest_node: Takes in a (x,y) position, returns nearest node on map"""
         min_dist = float("inf")
-        min_node = None
+        min_nodes = []
         x1, y1 = pos
         for node_name in self.nodes:
             node = self.nodes[node_name]
             dist = self.distance((x1, y1), node.xy)
             if dist < min_dist and node.is_obstacle == False:
                 min_dist = dist
+                min_nodes = [node]
+            elif dist == min_dist and node.is_obstacle == False:
+                min_nodes.append(node)
+        min_dist_to_center = float('inf')
+        for node in min_nodes:
+            if self.distance(node.xy, (0,0)) < min_dist_to_center:
+                min_dist_to_center = self.distance(node.xy, (0,0))
                 min_node = node
-
         return min_node
+
 
     def adjacent_nodes(self, node, object_size, circle_flag) -> list:
         """adjacent_nodes: returns surrounding nodes within a radius"""
@@ -167,13 +175,17 @@ class Graph:
             
             children = []
             for new_position in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                node_position = (current_node.xy[0] + new_position[0], current_node.xy[1] + new_position[1])
 
-                if node_position[0] > (len(self.nodes) - 1) or node_position[0] < 0 or node_position[1] > (len(self.nodes.og_get(len(self.nodes)-1) -1)) or node_position[1] < 0:
+                current_node_name = eval(current_node.name)
+                node_name = (current_node_name[0] + new_position[0], current_node_name[1] + new_position[1])
+                node_position = self.get_nearest_node(node_name).xy
+
+                if node_position[0] > self.arena_dimensions[0]/2 or node_position[0] < -self.arena_dimensions[0]/2 or node_position[1] > self.arena_dimensions[1]/2 or node_position[1] < -self.arena_dimensions[1]/2:
                     continue
 
-                new_node = self.nodes[f"({node_position[0]},{node_position[1]})"]
+                new_node = self.nodes[f"({node_name[0]},{node_name[1]})"]
                 if new_node.is_obstacle:
+                    print('node is obstacle')
                     continue
 
                 children.append(new_node)
@@ -185,6 +197,8 @@ class Graph:
                 child.ghf[0] = current_node.ghf[0] + 1
                 child.ghf[1] = self.distance(child.xy, end_node.xy)
                 child.ghf[2] = child.ghf[0] + child.ghf[1]
+
+                child.prev_node = current_node
 
                 for open_node in open_list:
                     if child == open_node and child.ghf[0] > open_node.ghf[0]:
@@ -205,28 +219,47 @@ class Graph:
 
 
 if __name__ == "__main__":
-    nodes = [[Node(f"({row},{col})") for col in range(3)] for row in range(3)]
+    arena_dimensions = (1000, 100)
+    radius = 10
+    G = Graph(arena_dimensions)
+    # Computes and initializes number of nodes
+    row_n = arena_dimensions[0] // radius - 1
+    col_n = arena_dimensions[1] // radius - 1
+    nodes = []
+    for i in range(row_n):
+        row = []
+        for j in range(col_n):
+            node = Node(f"({i},{j})")
+            # Center is 0,0
+            node.xy = [i*radius + radius - arena_dimensions[0]/2, j*radius + radius - arena_dimensions[1]/2]
+            #node.xy = [i*self.radius + self.radius, j*self.radius + self.radius]
 
-    for row in range(3):
-        for col in range(3):
-            if row > 0:
-                nodes[row][col].add_neighbour(nodes[row - 1][col], 1)  # Up
+            row.append(node)
 
-            if row < 2:
-                nodes[row][col].add_neighbour(nodes[row + 1][col], 1)  # Down
+        nodes.append(row)
 
-            if col > 0:
-                nodes[row][col].add_neighbour(nodes[row][col - 1], 1)  # Left
 
-            if col < 2:
-                nodes[row][col].add_neighbour(nodes[row][col + 1], 1)  # Right
+    # Adds neighbours to corresponding nodes
+    for i in range(row_n):
+        for j in range(col_n):
+            if i > 0:
+                # nodes[i][j].add_neighbour(nodes[i - 1][j], self.G.distance(nodes[i][j].xy, nodes[i-1][j].xy)) # Up
+                nodes[i][j].add_neighbour(nodes[i - 1][j], 1) # Up
+            if i < row_n - 1:
+                # nodes[i][j].add_neighbour(nodes[i + 1][j], self.G.distance(nodes[i][j].xy, nodes[i+1][j].xy))  # Down
+                nodes[i][j].add_neighbour(nodes[i + 1][j], 1)  # Down
+            if j > 0:
+                # nodes[i][j].add_neighbour(nodes[i][j - 1], self.G.distance(nodes[i][j].xy, nodes[i][j-1].xy)) # Left
+                nodes[i][j].add_neighbour(nodes[i][j - 1], 1) # Left
+            if j < col_n - 1:
+                # nodes[i][j].add_neighbour(nodes[i][j + 1], self.G.distance(nodes[i][j].xy, nodes[i][j+1].xy)) # Right
+                nodes[i][j].add_neighbour(nodes[i][j + 1], 1)
+    # Adds nodes to graph
+    for i in nodes:
+        for j in i:
+            G.add_node(j)
+    start_node = G.get_nearest_node((0,0))
+    G.set_obstacle(G.get_nearest_node((250,0)))
+    end_node = G.get_nearest_node((500,0))
+    print([print(G[eval(node)].xy) for node in G.a_star(start_node, end_node)])
 
-    G = Graph()
-    for row in nodes:
-        for node_i in row:
-            node_i.xy = [row.index(node_i), nodes.index(row)]
-            G.add_node(node_i)
-
-    start_node = nodes[2][2]
-    target_node = nodes[0][1]
-    G.a_star(start_node, target_node)
