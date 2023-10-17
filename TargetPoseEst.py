@@ -253,14 +253,14 @@ if __name__ == "__main__":
 
     print('Estimations saved!')
 
-    # save target pose estimations into fruit_pose_est.txt without the first "{"
-    with open(f'{script_dir}/lab_output/fruit_est_pose.txt', 'w') as fo:
-        json.dump(target_est, fo, indent=4)
+    # # save target pose estimations into fruit_pose_est.txt without the first "{"
+    # with open(f'{script_dir}/lab_output/fruit_est_pose.txt', 'w') as fo:
+    #     json.dump(target_est, fo, indent=4)
 
-    # remove the first "{"
-    with open(f'{script_dir}/lab_output/fruit_est_pose.txt', 'r+') as fo:
-        content = fo.read()
-        fo.seek(0, 0)
-        fo.write(content[1:-1])
+    # # remove the first "{"
+    # with open(f'{script_dir}/lab_output/fruit_est_pose.txt', 'r+') as fo:
+    #     content = fo.read()
+    #     fo.seek(0, 0)
+    #     fo.write(content[1:-1])
     
-    print('fruit_est_pose.txt saved!')
+    # print('fruit_est_pose.txt saved!')

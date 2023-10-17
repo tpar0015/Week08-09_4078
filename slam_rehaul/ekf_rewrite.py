@@ -257,7 +257,10 @@ class EKF:
         # if robot idle
         if raw_drive_meas.left_speed == 0 and raw_drive_meas.right_speed == 0:
             print("Robot idle - ", end="")
-            print(np.rad2deg(self.robot.state[-1]))
+            robot_x = self.robot.state[0]
+            robot_y = self.robot.state[1]
+            robot_theta = self.robot.state[2]
+            print(f"{robot_x}-{robot_y}-{np.rad2deg(robot_theta)}")
             model_noise = 0
         # if robot driving straight
         elif raw_drive_meas.left_speed == raw_drive_meas.right_speed:

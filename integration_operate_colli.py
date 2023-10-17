@@ -43,19 +43,23 @@ parser.add_argument("--calib_dir", metavar='', type=str, default="calibration/pa
 parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
 # For navi
-parser.add_argument("--aruco_size", metavar='',  type=int, default=500)
-parser.add_argument("--fruit_size", metavar='', type=int, default=500)  
+obs_size = 400  # 500
+shop_size = 300 # 400
+parser.add_argument("--aruco_size", metavar='',  type=int, default=obs_size)
+parser.add_argument("--fruit_size", metavar='', type=int, default=obs_size)  
 # Entire Robot is within 0.5 from fruit centre
-parser.add_argument("--target_size", metavar='',  type=int, default=400)
-parser.add_argument("--waypoint_threshold", metavar='', type=int, default=100)
+parser.add_argument("--target_size", metavar='',  type=int, default=300)
+parser.add_argument("--waypoint_threshold", metavar='', type=int, default=200)
 # For control
 parser.add_argument("--turn_tick", metavar='', type=int, default=20)
 parser.add_argument("--tick", metavar='', type=int, default=40)
+parser.add_argument("--unsafe_thres", metavar='', type=int, default=5)
+parser.add_argument("--360_turn_tick", metavar='', type=int, default=40)
 # For debug
 parser.add_argument("--plot", type=int, default=1)
 parser.add_argument("--waypoint_stop", type=int, default=0)
 # Fruit detection
-parser.add_argument("--yolo_model", default='latest_model.pt')
+parser.add_argument("--yolo", default='latest_model.pt')
 
 args = parser.parse_args()
 
@@ -137,6 +141,7 @@ try:
 
         waypoint_ctr = 0
         update_slam_flag = False
+        # operate.localise_360()
         # Iterate through each path in from navigation planning
         for one_path in path:
             # Iterate through each waypoint of each path to target fruit (in shopping order)

@@ -93,11 +93,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser("Matching the estimated map and the true map")
     parser.add_argument("groundtruth", type=str, help="The ground truth file name.")
-    parser.add_argument("estimate", type=str, help="The estimate file name.")
+    parser.add_argument("estimate", type=str, help="The estimate file name.", default="lab_output/slam.txt")
     args = parser.parse_args()
 
     gt_aruco = parse_groundtruth(args.groundtruth)
     us_aruco = parse_user_map(args.estimate)
+    # print(us_aruco)
 
     taglist, us_vec, gt_vec = match_aruco_points(us_aruco, gt_aruco)
 
@@ -106,7 +107,34 @@ if __name__ == '__main__':
     print("The RMSE before alignment: {}".format(rmse))
 
     theta, x = solve_umeyama2d(us_vec, gt_vec)
+
+
+    # read theta, x, y from offset.txt
+    # with open(f'offset.txt', 'r') as f:
+    #     x_trans = float(f.readline())
+    #     y_trans = float(f.readline())
+    #     theta_trans = float(f.readline())
+    tmp = np.load("offset.npy")
+    print(tmp)
+    # x_trans, y_trans, theta_trans = tmp
+    x_manual = tmp[:2, :]
+    print(x_manual)
+    theta_trans = tmp[-1][0]
+    print(theta_trans)
+    
+    # x_manual = x
+    # x_manual[0,0] = x_trans
+    # x_manual[1,0] = y_trans
+
     us_vec_aligned = apply_transform(theta, x, us_vec)
+    us_vec_manual_al = apply_transform(theta_trans, x_manual, us_vec)
+
+    us_aruco_aligned = {}
+    for i in range(len(taglist)):
+        us_aruco_aligned[taglist[i]] = us_vec_aligned[:,i]
+    print("------------")
+    print(us_aruco_aligned)
+    print("------------")
 
     print("The following parameters optimally transform the estimated points to the ground truth.")
     print("Rotation Angle: {}".format(theta))
@@ -134,7 +162,8 @@ if __name__ == '__main__':
     # Plot the three vector on the same graph
     import matplotlib.pyplot as plt
     plt.scatter(gt_vec[0,:], gt_vec[1,:], label="Ground Truth", marker='x')
-    plt.scatter(us_vec[0,:], us_vec[1,:], label="Unaligned Estimate", marker='o', linewidths=2)
+    plt.scatter(us_vec[0,:], us_vec[1,:], label="Unaligned Estimate", marker='*', linewidths=2)
+    plt.scatter(us_vec_manual_al[0,:], us_vec_manual_al[1,:], label="Manual aligned Estimate", marker='o', linewidths=2)
     plt.scatter(us_vec_aligned[0,:], us_vec_aligned[1,:], label="Aligned Estimate", alpha = 0.5)
     plt.legend()
     #axes equal
