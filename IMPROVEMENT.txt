@@ -1,6 +1,9 @@
+TODO:
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Question to be test:
+- fruit_obstacle same size with obstacles
+- pixel size on map (if fruit size = 450, it the same with obstacle = 500
+
+To test:
 
 - deal with robot reach boundary
 	- make boundary smaller? --> test more

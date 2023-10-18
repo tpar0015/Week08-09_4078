@@ -72,7 +72,8 @@ class Operate:
 
         # Improving slam ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.unsafe_waypoint = 0
-        self.unsafe_threshold = 3
+        self.unsafe_threshold = args.unsafe_thres
+        self.turn_360_vel = 15
 
         self.collide_threshold = 0.2
         self.backward_dist = 0.1
@@ -89,11 +90,11 @@ class Operate:
         self.img = np.zeros([240,320,3], dtype=np.uint8)
         self.aruco_img = np.zeros([240,320,3], dtype=np.uint8)
         self.detector_output = np.zeros([240, 320], dtype=np.uint8)
-        if args.yolo_model == "":
+        if args.yolo == "":
             self.detector = None
             self.yolo_vis = cv2.imread('pics/8bit/detector_splash.png')
         else:
-            self.detector = Detector("YOLO/model/" + args.yolo_model)
+            self.detector = Detector("YOLO/model/" + args.yolo)
             self.yolo_vis = np.ones((240, 320, 3)) * 100
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -143,7 +144,7 @@ class Operate:
     # SLAM with ARUCO markers       
     # def update_slam(self, drive_meas, slam_update_flag=True, weight=0):
     def update_slam(self, drive_meas, waypoint_ctr=3):
-        print_period = 0
+        print_period = 0.5
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
 
         if self.request_recover_robot: pass
@@ -266,7 +267,7 @@ class Operate:
             fruit_name = detection[0]
             tmp = self.est_fruit_dist(detection)
             dist.append(tmp)
-            print(f"{fruit_name} is {tmp}m away")
+            # print(f"{fruit_name} is {tmp}m away")
         
         # check for collision
         if len(dist) > 0:
@@ -321,7 +322,7 @@ class Operate:
         baseline = self.ekf.robot.wheels_width
         # Compute
         tmp = self.pibot.turning_tick
-        self.pibot.turning_tick = 10 #for better aruco detection
+        self.pibot.turning_tick = self.turn_360_vel #for better aruco detection
         turn_360_time = baseline/2 * (2*np.pi) / (scale * self.pibot.turning_tick)
         # Rotate at spot
         self.command['motion'] = [0, 1]

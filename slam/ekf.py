@@ -14,6 +14,8 @@ class EKF:
     ##########################################
 
     def __init__(self, robot):
+        self.lock_map = False
+
         # State components
         self.robot = robot
         self.markers = np.zeros((2,0))
@@ -142,7 +144,22 @@ class EKF:
         #     # replace robot pose in x with covar drive
         #     x[0:3, 0] = robot_pose
         # else:
-        x = x + K @ (z - z_hat)
+        ## create mask to be used across x and K
+        mask = np.zeros_like(x, dtype=bool)
+        mask[:3] = True # this represents the three elements of the 
+                        # robots pose, which we do want to update
+        mask = mask.squeeze()
+
+        # measurement_update_weight = 0.2
+        '''Correct State'''
+        if self.lock_map:
+            # Only update robot pose
+            x[mask] = x[mask] + np.dot(K[mask], (z - z_hat))
+            # Previous, adjust_weight = 0.77 for "unsafe" mode - when detect <2 landmarks
+        else:
+            # Original code where x is updated based on measurement
+            x = x + K @ (z - z_hat) 
+
         P = (np.eye(self.P.shape[0]) - K @ H) @ self.P
         # update
         self.set_state_vector(x)
@@ -164,7 +181,10 @@ class EKF:
         # if robot idle
         if raw_drive_meas.left_speed == 0 and raw_drive_meas.right_speed == 0:
             print("Robot idle - ", end="")
-            print(np.rad2deg(self.robot.state[-1]))
+            robot_x = self.robot.state[0]
+            robot_y = self.robot.state[1]
+            robot_theta = self.robot.state[2]
+            print(f"{robot_x}-{robot_y}-{np.rad2deg(robot_theta)}")
             model_noise = 0
         # if robot driving straight
         elif raw_drive_meas.left_speed == raw_drive_meas.right_speed:

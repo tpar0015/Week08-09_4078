@@ -52,6 +52,7 @@ class Operate:
         ####################################################################
         self.flag = False
         self.high_speed = False
+        self.turn_360_time = 0
 
         # self.stopUpdateLM = False
         ####################################################################
@@ -78,11 +79,11 @@ class Operate:
         self.img = np.zeros([240, 320, 3], dtype=np.uint8)
         self.aruco_img = np.zeros([240, 320, 3], dtype=np.uint8)
         self.detector_output = np.zeros([240, 320], dtype=np.uint8)
-        if args.yolo_model == "":
+        if args.yolo == "":
             self.detector = None
             self.yolo_vis = cv2.imread('pics/8bit/detector_splash.png')
         else:
-            self.detector = Detector("YOLO/model/" + args.yolo_model)
+            self.detector = Detector("YOLO/model/" + args.yolo)
             self.yolo_vis = np.ones((240, 320, 3)) * 100
         self.bg = pygame.image.load('pics/gui_mask.jpg')
 
@@ -254,6 +255,18 @@ class Operate:
                                             False, text_colour)
         canvas.blit(caption_surface, (position[0], position[1] - 25))
 
+    def slam_360(self):
+        # Get params
+        scale = self.ekf.robot.wheels_scale
+        baseline = self.ekf.robot.wheels_width
+        # Compute
+        turn_360_time = baseline/2 * (2*np.pi) / (scale * self.pibot.turning_tick)
+        print(turn_360_time)
+        # Rotate at spot
+        self.turn_360_time = turn_360_time + time.time()
+        print(self.turn_360_time)
+        self.command['motion'] = [0, 1]
+
     # keyboard teleoperation, replace with your M1 codes if preferred        
     def update_keyboard(self):
 
@@ -293,6 +306,7 @@ class Operate:
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 self.command['motion'] = [0, 0]
+
             # save image
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
                 self.command['save_image'] = True
@@ -325,8 +339,25 @@ class Operate:
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             
-            # # if l is pressed, 
-            # elif event.type == pygame.KEYDOWN and event.key == pygame.K_l:
+            # if l is pressed, 
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_l:
+                self.notification = 'Save offset.txt'
+                # get robot pose
+                robot_x = self.ekf.robot.state[0]
+                robot_y = self.ekf.robot.state[1]
+                robot_theta = self.ekf.robot.state[2]
+                # calculate offset
+                x_offset = -robot_x
+                y_offset = -robot_y
+                theta_offset = -(robot_theta - 2*np.pi)
+                # write these 3 value into a offset.txt
+                # with open("offset.txt", 'w') as f:
+                #     f.write(f"{x_offset}\n")
+                #     f.write(f"{y_offset}\n")
+                #     f.write(f"{theta_offset}\n")
+
+                np.save("offset.npy", np.array([x_offset, y_offset, theta_offset]))
+
             #     self.ekf.no_update_when_360 = not self.ekf.no_update_when_360
             #     self.notification = f'no_update_when_360: {self.ekf.no_update_when_360}'
 
@@ -339,8 +370,13 @@ class Operate:
                     self.notification = 'SLAM Map is cleared'
                     self.double_reset_comfirm = 0
                     self.ekf.reset()
+
             # run SLAM
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                if self.turn_360_time == 0:
+                    print("start 360")
+                    self.slam_360()
+                
                 n_observed_markers = len(self.ekf.taglist)
                 if n_observed_markers == 0:
                     if not self.ekf_on:
@@ -361,6 +397,7 @@ class Operate:
             # run object detector
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                 self.command['inference'] = True
+                self.ekf.lock_map = True
             # save object detection outputs
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_n:
                 self.command['save_inference'] = True
@@ -383,7 +420,7 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='latest_model.pt')
+    parser.add_argument("--yolo", default='latest_model.pt')
 
     args, _ = parser.parse_known_args()
 
@@ -446,6 +483,13 @@ if __name__ == "__main__":
                 # Your loop code here
                 operate.command['save_image'] = True
                 print(f" {loop_interval} milliseconds has passed.")
+        # check first 360 slam
+        
+        # print(abs(time.time() - operate.turn_360_time))
+        if operate.turn_360_time:
+            if (abs(time.time() - operate.turn_360_time)) < 0.01:
+                print("done")
+                operate.command['motion'] = [0, 0]
 
         operate.save_image()
         operate.detect_target()

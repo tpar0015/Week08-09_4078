@@ -1,4 +1,5 @@
-lemon
-pear
-mango
-pine
+lime
+garlic
+capsicum
+orange
+potato
