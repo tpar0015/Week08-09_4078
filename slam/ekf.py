@@ -309,6 +309,21 @@ class EKF:
                 canvas = cv2.ellipse(canvas, coor_, 
                     (int(axes_len[0]*m2pixel), int(axes_len[1]*m2pixel)),
                     angle, 0, 360, (244, 69, 96), 1)
+        
+        # draw line x = 0, 0.5, 1, 1.5 (in red) and 
+        line_range = [-1.5, -1, -0.5, 0, 0.5, 1, 1.5]
+        for x in line_range:
+            color = 0
+            if x == -1.5 or x == 1.5:
+                color = 255
+            cv2.line(canvas, (int(res[0]/2+x*m2pixel), 0), (int(res[0]/2+x*m2pixel), res[1]), (0, 0, color), 1)
+        # draw y = 0, 0.5, 1, 1.5 (in red) 
+        for y in line_range:
+            color = 0
+            if y == -1.5 or y == 1.5:
+                color = 255
+            cv2.line(canvas, (0, int(res[1]/2+y*m2pixel)), (res[0], int(res[1]/2+y*m2pixel)), (0, 0, color), 1)
+
 
         surface = pygame.surfarray.make_surface(np.rot90(canvas))
         surface = pygame.transform.flip(surface, True, False)

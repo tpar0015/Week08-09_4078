@@ -215,6 +215,9 @@ if __name__ == '__main__':
     parser.add_argument("--slam", type=str, help="path to slam.txt", default="lab_output/slam.txt")
     parser.add_argument("--fruit", type=str, help="path to targets.txt", default="lab_output/targets.txt")
     parser.add_argument("--yolo", type=str, help="yolo model", default="latest_model.pt")
+    parser.add_argument('--x', type=float, default=-1)
+    parser.add_argument('--y', type=float, default=-1)
+    parser.add_argument('--theta', type=float, default=-1)
     args = parser.parse_args()
     ##############################################################################
     est_fruit_pose(args.yolo)
@@ -228,9 +231,19 @@ if __name__ == '__main__':
 
     # read theta, x, y from offset.txt
     tmp = np.load("offset.npy")
-    x_trans = tmp[:2, :]
-    theta_trans = tmp[-1][0]
-    print(f"Apply map alignment by {theta_trans} degree, {x_trans[0]} {{x_trans[0]}} translation")
+    if args.x != -1 and args.y != -1:
+        x_trans = np.zeros((2,1))
+        x_trans[0] = args.x
+        x_trans[1] = args.y
+    else:
+        x_trans = tmp[:2, :]
+    if args.theta != -1:
+        theta_trans = args.theta
+    else:
+        theta_trans = tmp[-1][0]
+    print("Apply transformation")
+    print("Rotation Angle: {}".format(theta_trans))
+    print("Translation Vector: ({}, {})".format(x_trans[0,0], x_trans[1,0]))
 
     # apply transform
     us_vec_aligned = apply_transform(theta_trans, x_trans, us_vec)

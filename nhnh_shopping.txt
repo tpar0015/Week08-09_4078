@@ -1,4 +1,0 @@
-lemon
-pear
-mango
-pine

@@ -1,5 +1,3 @@
+lemon
 lime
-garlic
-capsicum
 orange
-potato

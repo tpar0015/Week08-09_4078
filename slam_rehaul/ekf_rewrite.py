@@ -134,7 +134,7 @@ class EKF:
             # input("2s passed, enter to continue")
             self.print_clock = time.time()
             self.print_flag  = True
-            print(f"\nPredict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+            print(f"Predict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
 
     '''
     Input:
@@ -225,7 +225,7 @@ class EKF:
         if self.print_flag and print_period:
             # input("2s passed, enter to continue")
             self.print_flag = False
-            print(f"\n--> Update: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+            print(f"--> Update: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
         ## ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         ## logging/monitoring
         

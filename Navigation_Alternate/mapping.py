@@ -134,7 +134,7 @@ class Map:
     def add_fruits_as_obstacles(self):
         fruit_targets = w8.read_search_list(self.shopping_list)
         fruit_list, fruit_pos, _ = w8.read_true_map(self.true_map)
-        fruit_coords = w8.print_target_fruits_pos(fruit_targets, fruit_list, fruit_pos)
+        fruit_coords = w8.read_target_fruits_pos(fruit_targets, fruit_list, fruit_pos)
         for fruit, name in zip(fruit_pos, fruit_list):
             fruit = fruit * 1000
             if name in fruit_targets:
@@ -262,10 +262,11 @@ class Map:
                         i += 1
             final_path.append(path)
         return final_path
+    
     def get_targets(self):
         fruit_targets = w8.read_search_list(self.shopping_list)
         fruit_list, fruit_pos, _ = w8.read_true_map(self.true_map)
-        fruit_coords = w8.print_target_fruits_pos(fruit_targets, fruit_list, fruit_pos)
+        fruit_coords = w8.read_target_fruits_pos(fruit_targets, fruit_list, fruit_pos)
         for i in range(len(fruit_coords)):
             x, y = fruit_coords[i] 
             target_fruit = (x*1000, y*1000)
@@ -343,7 +344,13 @@ class Map:
         nx.draw_networkx_labels(G_img, pos=positions, labels=labels)
         nx.draw_networkx_nodes(G_img, pos=positions, node_color=colors, node_size=sizes)
         nx.draw_networkx_edges(G_img, pos=positions, edge_color=edge_colors)
-        plt.show()
+        if self.plot:
+            # Figure size
+            fig = plt.gcf()
+            fig.set_size_inches(18.5, 10.5)
+            plt.show(block=False)
+        else:
+            plt.savefig("djikstras_map.png")
 
     def draw_arena(self, draw_path=True) -> None:
         """draw_arena: Draw        # for fruit in fruit_pos:

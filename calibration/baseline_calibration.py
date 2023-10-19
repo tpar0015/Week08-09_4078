@@ -42,8 +42,7 @@ def calibrateBaseline(angle):
             uInput = input(f"Did the robot spin {angle_caliration_deg} deg?[y/N]")
             if uInput == 'y':
                 delta_times.append(delta_time)
-                print(f"Recording that the robot spun {angle_caliration_deg} deg" + 
-                      "in {delta_time:.2f} seconds at wheel speed {wheel_vel}.\n")
+                print(f"Recording that the robot spun {angle_caliration_deg} deg in {delta_time:.2f} seconds at wheel speed {wheel_vel}.\n")
                 break
 
     # Once finished driving, compute the basline parameter by averaging
@@ -66,7 +65,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
-    parser.add_argument("--angle", metavar='', type=int, default=360)
+    parser.add_argument("--angle", metavar='', type=int, default=180)
     args, _ = parser.parse_known_args()
 
     ppi = PenguinPi(args.ip,args.port)

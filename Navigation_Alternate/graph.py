@@ -142,6 +142,7 @@ class Graph:
                         neighbour.distance = new_distance
                         neighbour.prev_node = current_node
                         heapq.heappush(heap, (new_distance, neighbour))
+                        
     def a_star(self, start_node, end_node):
         """Returns a list of tuples as a path from the given start to the given end in the given maze"""
 

@@ -130,6 +130,7 @@ class Operate:
                 self.notification = 'Recover failed, need >2 landmarks!'
                 self.ekf_on = False
             self.request_recover_robot = False
+
         elif self.ekf_on:  # and not self.debug_flag:
             # Once activate SLAM, state is predicted by measure DRIVE
             # Then being updated with EKF by measure LMS
@@ -322,7 +323,7 @@ class Operate:
                     self.high_speed = False
                     self.command['motion'] = [0, 0]
                     self.pibot.tick = 30
-                    self.pibot.turning_tick = 10
+                    self.pibot.turning_tick = 15
                 else:
                     # Switch to HIGH speed
                     self.notification = 'Changed speed to HIGH SPEED'
@@ -349,7 +350,11 @@ class Operate:
                 # calculate offset
                 x_offset = -robot_x
                 y_offset = -robot_y
-                theta_offset = -(robot_theta - 2*np.pi)
+                # print(abs(robot_theta))
+                if robot_theta < 0:
+                    theta_offset = -(robot_theta + 2*np.pi)
+                else:
+                    theta_offset = -(robot_theta - 2*np.pi)
                 # write these 3 value into a offset.txt
                 # with open("offset.txt", 'w') as f:
                 #     f.write(f"{x_offset}\n")
@@ -373,9 +378,9 @@ class Operate:
 
             # run SLAM
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                if self.turn_360_time == 0:
-                    print("start 360")
-                    self.slam_360()
+                # if self.turn_360_time == 0:
+                #     print("start 360")
+                #     self.slam_360()
                 
                 n_observed_markers = len(self.ekf.taglist)
                 if n_observed_markers == 0:
@@ -483,13 +488,6 @@ if __name__ == "__main__":
                 # Your loop code here
                 operate.command['save_image'] = True
                 print(f" {loop_interval} milliseconds has passed.")
-        # check first 360 slam
-        
-        # print(abs(time.time() - operate.turn_360_time))
-        if operate.turn_360_time:
-            if (abs(time.time() - operate.turn_360_time)) < 0.01:
-                print("done")
-                operate.command['motion'] = [0, 0]
 
         operate.save_image()
         operate.detect_target()

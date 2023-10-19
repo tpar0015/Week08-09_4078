@@ -62,7 +62,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
-    parser.add_argument("--dist", metavar='', type=int, default=1)
+    parser.add_argument("--dist", metavar='', type=int, default=0.5)
     args, _ = parser.parse_known_args()
 
     ppi = PenguinPi(args.ip,args.port)

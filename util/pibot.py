@@ -8,7 +8,7 @@ import urllib.request
 
 
 class PenguinPi:
-    def __init__(self, ip, port, tick = 30, turning_tick = 10): # default speed for good SLAM est
+    def __init__(self, ip, port, tick = 30, turning_tick = 15): # default speed for good SLAM est
 
         self.ip = ip
         self.port = port

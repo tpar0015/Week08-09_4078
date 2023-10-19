@@ -41,7 +41,7 @@ from YOLO.detector import Detector
 ''' Merge auto_fruit_search in w8 into previous Operate class'''
 ####################################################################################
 class Operate:
-    def __init__(self, args, gui=True):
+    def __init__(self, args, gui=True, semi=False):
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # initialise data parameters
@@ -54,7 +54,7 @@ class Operate:
             self.data = dh.DatasetWriter('record')
         else:
             self.data = None
-        self.output = dh.OutputWriter('lab_output')
+        # self.output = dh.OutputWriter('lab_output')
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # initialise SLAM + Driving parameters
@@ -71,10 +71,18 @@ class Operate:
         # Improving slam ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.unsafe_waypoint = 0
         self.unsafe_threshold = args.unsafe_thres
-        self.turn_360_vel = 15
+        self.turn_360_vel = args.slam_turn_tick
 
+        # distance away from obstacles
         self.collide_threshold = 0.2
+        # distance to go back if about to collide
         self.backward_dist = 0.1
+        # number of "about to collide" alerted
+        self.collide_ctr = 0
+        # threshold for further actions if "being stuck at the obstacles fruit"
+        self.collide_ctr_thres = 3
+        # this for skip some waypoint from the start as the robot is confident without slam update
+        self.waypoint_to_skip_update_slam = 5 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         self.image_id = 0
@@ -102,7 +110,8 @@ class Operate:
 
 
         if gui:
-            self.gui = GUI(750,750, args.map) 
+            self.gui = GUI(750,750, args.map)
+        self.semi_auto = semi
 
     '''
     ##############################################################################
@@ -141,31 +150,31 @@ class Operate:
 
     # SLAM with ARUCO markers       
     # def update_slam(self, drive_meas, slam_update_flag=True, weight=0):
-    def update_slam(self, drive_meas, waypoint_ctr=3):
-        print_period = 0.5
+    def update_slam(self, drive_meas, waypoint_ctr=100, check_collision = True): # by default, always update slam
+        print_period = 0.05
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
 
         if self.request_recover_robot: pass
         elif self.ekf_on:
             self.ekf.predict(drive_meas, print_period)
-            # self.ekf.add_landmarks(lms) # <----------- DONT NEED THIS
             for lm in lms:
                 # Remove those error detection
                 if lm.tag not in range(1, 11):
                     lms.remove(lm)
-
-                if waypoint_ctr > 2:
-                    # print(f"lm {lm.tag} is {lm.dist} away")
+                    continue
+                # Debug
+                # print(f"lms {lm.tag}", end=" ")
+                if not self.semi_auto:
+                    # check for collision
                     if lm.dist <= self.collide_threshold:
                         print("!!! Alerted - about to collide with landmarks !!!")
+                        self.collide_ctr += 1
                         self.stop()
                         self.manual_backward()
-                        input("Enter to continue")
                         return -1
 
-            # unsafe_mode_flag = True
-            # adjust_weight = 1
-            if waypoint_ctr > 2:
+            # skip those first waypoint as the robot is confident without updating slam
+            if waypoint_ctr > self.waypoint_to_skip_update_slam:
                 self.ekf.update(lms, print_period=print_period)
 
         return len(lms)
@@ -211,13 +220,12 @@ class Operate:
         x = pose[0]
         y = pose[1]
         theta = np.rad2deg(pose[2])
-        print(f"---> ROBOT pose: [{x} {y} {theta}]")
+        if self.semi_auto: #print in cm
+            x *= 100
+            y *= 100
+        print(f"---> ROBOT pose: [{x:.3f} {y:.3f} {theta:.3f}]")
 
     ####################################################################################
-
-    def get_point_angle_relate_world(self, start_pose, end_point):
-        angle_to_waypoint = np.arctan2((end_point[1]-start_pose[1]),(end_point[0]-start_pose[0])) # rad
-        return angle_to_waypoint
     
     def reach_close_point(self, current_pose_xy, point_xy, threshold = 0.05):
         dist = np.linalg.norm(current_pose_xy[0:2] - point_xy[0:2])
@@ -230,7 +238,6 @@ class Operate:
         lv, rv = self.pibot.set_velocity(self.command['motion'])
         if not self.data is None:
             self.data.write_keyboard(lv, rv)
-        
         dt = time.time() - self.control_clock
         # running on physical robot (right wheel reversed)
         drive_meas = measure.Drive(lv, -rv, dt)
@@ -250,30 +257,42 @@ class Operate:
             drive_meas = self.control()
             self.update_slam(drive_meas, waypoint_ctr = 0) # not updating slam
         self.stop()
+        input("Enter to continue")
 
 
-    def detect_fruit(self):
-        # need to convert the colour before passing to YOLO
-        yolo_input_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
+    def detect_fruit(self, target_fruit_pos):
+        if not self.semi_auto:
+            # need to convert the colour before passing to YOLO
+            yolo_input_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
 
-        self.detector_output, self.yolo_vis = self.detector.detect_single_image(yolo_input_img)
+            self.detector_output, self.yolo_vis = self.detector.detect_single_image(yolo_input_img)
 
-        dist = []
-        for detection in self.detector_output:
-            fruit_name = detection[0]
-            tmp = self.est_fruit_dist(detection)
-            dist.append(tmp)
-            # print(f"{fruit_name} is {tmp}m away")
-        
-        # check for collision
-        if len(dist) > 0:
-            if min(dist) < self.collide_threshold:
-            # if min(dist) < 0.1:
-                print(f"!!! Alerted - fruit {min(dist)} !!!")
-                self.stop()
-                self.manual_backward()
-                input("Enter to continue")
-                return True
+            dist = []
+            for detection in self.detector_output:
+                fruit_name = detection[0]
+                tmp = self.est_fruit_dist(detection)
+                dist.append(tmp)
+                # print(f"{fruit_name} is {tmp}m away")
+            
+            # Check if the robot is close to the target fruit
+            # get robot x, y
+            reach_target_threshold = 0.4
+
+            # check for collision
+            if len(dist) > 0:
+                if min(dist) < reach_target_threshold:
+                    current_robot_xy = self.get_robot_pose()[:2]
+                    if self.reach_close_point(current_robot_xy, target_fruit_pos, threshold = 0.4):
+                        print("Hell yeah, reach fruit early")
+                        self.stop()
+                        input("Enter to continue")
+                        return True
+                if min(dist) < self.collide_threshold:
+                    print(f"!!! Alerted - fruit {min(dist)} !!!")
+                    self.collide_ctr += 1
+                    self.stop()
+                    self.manual_backward()
+                    return True
         
         return False
 
@@ -307,6 +326,7 @@ class Operate:
         return distance   
 
 
+
     # Rotate 360 to accurately self localise
     def localise_360(self):
         self.stop()
@@ -337,38 +357,40 @@ class Operate:
         # input("Done, continue the navi?\n")
 
     # waypoint_ctr used to skip update slam for the first waypoint
-    def drive_to_point(self, waypoint, waypoint_ctr):
+    def drive_to_point(self, waypoint, waypoint_ctr, target_fruit_pos = 0):
         turn_time = self.get_turn_time(waypoint)
         drive_time = self.get_drive_time(waypoint)
         #################################################
         print(f"Turn for {turn_time}")
-        # Set turn velocity
-        if turn_time < 0:
-            turn_time *= -1
-            self.command['motion'] = [0, -1]
-        else:
-            self.command['motion'] = [0, 1]
-        # Turn at spot
-        turn_time += time.time()
-        self.control_clock = time.time()
-        
-        localise_flag = True
-        collision_flag = False
-        while time.time() <= turn_time:
-            self.take_pic()
-            drive_meas = self.control()
-            # if slam_update_flag:
-            lms_detect = self.update_slam(drive_meas, waypoint_ctr)
-            if lms_detect == -1 or self.detect_fruit():
-                collision_flag = True
-                # skip this waypoint
-                return None
-            if lms_detect != 0:
-                localise_flag = False
+        if turn_time != 0:
+            # Set turn velocity
+            if turn_time < 0:
+                turn_time *= -1
+                self.command['motion'] = [0, -1]
+            else:
+                self.command['motion'] = [0, 1]
+            # Turn at spot
+            turn_time += time.time()
+            self.control_clock = time.time()
             
-
-        # print(f"from turn: {unsafe_mode_flag_1}")
-        self.stop()
+            localise_flag = True
+            while time.time() <= turn_time:
+                self.take_pic()
+                drive_meas = self.control()
+                # if slam_update_flag:
+                lms_detect = self.update_slam(drive_meas, waypoint_ctr)
+                if lms_detect == -1 or self.detect_fruit(target_fruit_pos):
+                    if self.collide_ctr == self.collide_ctr_thres:
+                        self.localise_360()
+                        # self.go_around()
+                    # skip this waypoint
+                    return None
+                if lms_detect != 0:
+                    localise_flag = False
+                
+            self.stop()
+        # Debug
+        # input("Finish turning")
         ##################################################
         print(f"Drive for {drive_time}")
         # Set drive velocity
@@ -381,8 +403,10 @@ class Operate:
             drive_meas = self.control()
             # if slam_update_flag:
             lms_detect = self.update_slam(drive_meas, waypoint_ctr)
-            if lms_detect == -1 or self.detect_fruit():
-                collision_flag = True
+            if lms_detect == -1 or self.detect_fruit(target_fruit_pos):
+                if self.collide_ctr == self.collide_ctr_thres:
+                    self.localise_360()
+                    # self.go_around() # <------------------------------------------------------
                 # skip this waypoint
                 return None
             if lms_detect != 0:
@@ -395,9 +419,10 @@ class Operate:
         ###########################################################################
         # if 0 landmarks detected throughout the drive_to_waypoint
         if localise_flag:
-                self.unsafe_waypoint += 1
+            self.unsafe_waypoint += 1
                 
         if self.unsafe_waypoint == self.unsafe_threshold:
+            if not self.semi_auto:
                 self.localise_360()
                 self.unsafe_waypoint = 0
 
@@ -458,13 +483,12 @@ class Operate:
     #         self.notification = 'Map is saved'
     #         self.command['output'] = False
 
-    # # paint the GUI            
+    # paint the GUI            
     # def draw(self, canvas):
     #     canvas.blit(self.bg, (0, 0))
     #     text_colour = (220, 220, 220)
     #     v_pad = 40
     #     h_pad = 20
-
     #     # paint SLAM outputs
     #     ekf_view = self.ekf.draw_slam_state(res=(320, 480+v_pad), not_pause = self.ekf_on)
     #     canvas.blit(ekf_view, (2*h_pad+320, v_pad))
@@ -479,6 +503,9 @@ class Operate:
     #                      position=(h_pad, 240+2*v_pad)) # M3
     #     self.put_caption(canvas, caption='PiBot Cam', position=(h_pad, v_pad))
 
+    #     pygame.font.init()
+    #     TITLE_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 35)
+    #     TEXT_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 40)
     #     notifiation = TEXT_FONT.render(self.notification,
     #                                       False, text_colour)
     #     canvas.blit(notifiation, (h_pad+10, 596))
@@ -533,70 +560,70 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     # read in the true map
-    fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
+    # fruits_list, fruits_true_pos, aruco_true_pos = w8.read_true_map(args.map)
 
-    # create a list start from 1 to 10
-    aruco_taglist = [i for i in range(1,11)]
+    # # create a list start from 1 to 10
+    # aruco_taglist = [i for i in range(1,11)]
 
-    # print target fruits
-    target_fruit_list = w8.read_search_list("M4_prac_shopping_list.txt") # change to 'M4_true_shopping_list.txt' for lv2&3
-    target_fruits_pos = w8.print_target_fruits_pos(target_fruit_list, fruits_list, fruits_true_pos)
-
-    #######################################################################################
-    print("\n\t- Setting up params for NAVIGATION - \n")
-
-    # Generate obstacle list based on Selected shape
-    # This consists of 10 aruco and 5 obstable fruit
-    obstacles, obs_pos = w8.get_obstacles(aruco_true_pos, fruits_true_pos, target_fruits_pos, shape = "rectangle", size = 0.3)
+    # # print target fruits
+    # target_fruit_list = w8.read_search_list("M4_prac_shopping_list.txt") # change to 'M4_true_shopping_list.txt' for lv2&3
+    # target_fruits_pos = w8.print_target_fruits_pos(target_fruit_list, fruits_list, fruits_true_pos)
 
     # #######################################################################################
-    print("\n\t- Generating pathway for NAVIGATION - \n")
-    waypoint, step_list = w8.get_path(target_fruit_list, target_fruits_pos, obstacles, robot_step_size=0.05, goal_tolerance=0.1 )
+    # print("\n\t- Setting up params for NAVIGATION - \n")
 
-    print(f"--> Total steps: {sum(step_list)}")
+    # # Generate obstacle list based on Selected shape
+    # # This consists of 10 aruco and 5 obstable fruit
+    # obstacles, obs_pos = w8.get_obstacles(aruco_true_pos, fruits_true_pos, target_fruits_pos, shape = "rectangle", size = 0.3)
 
-    print(waypoint)
+    # # #######################################################################################
+    # print("\n\t- Generating pathway for NAVIGATION - \n")
+    # waypoint, step_list = w8.get_path(target_fruit_list, target_fruits_pos, obstacles, robot_step_size=0.05, goal_tolerance=0.1 )
 
-    # #######################################################################################
-    # w8.plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obstacles)
+    # print(f"--> Total steps: {sum(step_list)}")
 
-    ###################################################################################
-    ###################################################################################
-    #####################         GUI integrated          #############################
-    ###################################################################################
-    ###################################################################################
-    operate = Operate(args, gui = False)
-    # operate.stop()
+    # print(waypoint)
 
-    for fruit, path in waypoint.items():
+    # # #######################################################################################
+    # # w8.plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obstacles)
 
-        # Turn off SLAM
-        operate.ekf_on = False
+    # ###################################################################################
+    # ###################################################################################
+    # #####################         GUI integrated          #############################
+    # ###################################################################################
+    # ###################################################################################
+    # operate = Operate(args, gui = False)
+    # # operate.stop()
 
-        # operate.rotate_360_slam()
+    # for fruit, path in waypoint.items():
 
-        # Ignore first waypoint
-        counter_slam = 0
-        for waypoint in path[1:]:
+    #     # Turn off SLAM
+    #     operate.ekf_on = False
+
+    #     # operate.rotate_360_slam()
+
+    #     # Ignore first waypoint
+    #     counter_slam = 0
+    #     for waypoint in path[1:]:
             
-            ###########################################################
-            # 1. Robot drives to the waypoint
-            start_pose = operate.get_robot_pose()
-            print(f"\nNext waypoint {waypoint}")
-            operate.drive_to_point(waypoint)
+    #         ###########################################################
+    #         # 1. Robot drives to the waypoint
+    #         start_pose = operate.get_robot_pose()
+    #         print(f"\nNext waypoint {waypoint}")
+    #         operate.drive_to_point(waypoint)
 
-            ###########################################################
-            # 2. Manual compute robot pose (based on start pose & end points)
-            operate.manual_set_robot_pose(start_pose, waypoint, debug=False)
-            # Debugging
-            pose = operate.get_robot_pose()
-            theta = np.rad2deg(pose[2])
-            print(f"--->Arrived at {waypoint} - Robot pose: {theta}")                    
-            counter_slam += 1
+    #         ###########################################################
+    #         # 2. Manual compute robot pose (based on start pose & end points)
+    #         operate.manual_set_robot_pose(start_pose, waypoint, debug=False)
+    #         # Debugging
+    #         pose = operate.get_robot_pose()
+    #         theta = np.rad2deg(pose[2])
+    #         print(f"--->Arrived at {waypoint} - Robot pose: {theta}")                    
+    #         counter_slam += 1
 
-            if counter_slam == 12:
-                operate.rotate_360_slam()
+    #         if counter_slam == 12:
+    #             operate.rotate_360_slam()
 
 
-        print("--- Stage 2 --- DEBUG --- Reach target fruit")
-        input("Enter to continute\n")
+    #     print("--- Stage 2 --- DEBUG --- Reach target fruit")
+    #     input("Enter to continute\n")

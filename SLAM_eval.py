@@ -2,6 +2,7 @@
 import ast
 import numpy as np
 import json
+import time
 
 def parse_groundtruth(fname : str) -> dict:
     with open(fname,'r') as f:
@@ -93,7 +94,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser("Matching the estimated map and the true map")
     parser.add_argument("groundtruth", type=str, help="The ground truth file name.")
-    parser.add_argument("estimate", type=str, help="The estimate file name.", default="lab_output/slam.txt")
+    parser.add_argument("--estimate", type=str, help="The estimate file name.", default="lab_output/slam.txt")
     args = parser.parse_args()
 
     gt_aruco = parse_groundtruth(args.groundtruth)
@@ -102,61 +103,47 @@ if __name__ == '__main__':
 
     taglist, us_vec, gt_vec = match_aruco_points(us_aruco, gt_aruco)
 
-
     rmse = compute_rmse(us_vec, gt_vec)
     print("The RMSE before alignment: {}".format(rmse))
 
+    # Transformation
     theta, x = solve_umeyama2d(us_vec, gt_vec)
-
-
-    # read theta, x, y from offset.txt
-    # with open(f'offset.txt', 'r') as f:
-    #     x_trans = float(f.readline())
-    #     y_trans = float(f.readline())
-    #     theta_trans = float(f.readline())
+    # Manual transformation
     tmp = np.load("offset.npy")
-    print(tmp)
-    # x_trans, y_trans, theta_trans = tmp
     x_manual = tmp[:2, :]
-    print(x_manual)
-    theta_trans = tmp[-1][0]
-    print(theta_trans)
-    
-    # x_manual = x
-    # x_manual[0,0] = x_trans
-    # x_manual[1,0] = y_trans
-
+    theta_manual = tmp[-1][0]
+    # Apply
     us_vec_aligned = apply_transform(theta, x, us_vec)
-    us_vec_manual_al = apply_transform(theta_trans, x_manual, us_vec)
-
+    us_vec_manual_al = apply_transform(theta_manual, x_manual, us_vec)
+    # Print
     us_aruco_aligned = {}
     for i in range(len(taglist)):
         us_aruco_aligned[taglist[i]] = us_vec_aligned[:,i]
     print("------------")
     print(us_aruco_aligned)
     print("------------")
-
-    print("The following parameters optimally transform the estimated points to the ground truth.")
+    print("UMEYAMA transformation params:")
     print("Rotation Angle: {}".format(theta))
     print("Translation Vector: ({}, {})".format(x[0,0], x[1,0]))
 
-    # write theta and vector x into file name slam_log.txt
-    with open("slam_log.txt", 'a') as f:
-        f.write(f"Rotation Angle: {theta}\n")
-        f.write(f"Translation Vector: ({x[0,0]}, {x[1,0]})\n")
+    print("Manual transformation params:")
+    print("Rotation Angle: {}".format(theta_manual))
+    print("Translation Vector: ({}, {})".format(x_manual[0,0], x_manual[1,0]))
 
     rmse = compute_rmse(us_vec_aligned, gt_vec)
-    print("The RMSE after alignment: {}".format(rmse))
+    print("The RMSE with UMEYAMA alignment: {}".format(rmse))
+    rmse_manual = compute_rmse(us_vec_manual_al, gt_vec)
+    print("The RMSE with manual alignment: {}".format(rmse_manual))
 
-    print()
-    print("Pred Locations")
-    print(taglist)
-    print("Real Locations")
-    print("np.array(\n"+np.array2string(gt_vec, precision=4, separator=',')+')')
-    print("Aligned Pred Locations")
-    print("np.array(\n"+np.array2string(us_vec_aligned, precision=4, separator=',')+')')
-    print("UN-aligned Pred locations")
-    print("np.array(\n"+np.array2string(us_vec, precision=4, separator=',')+')')
+    # print()
+    # print("Pred Locations")
+    # print(taglist)
+    # print("Real Locations")
+    # print("np.array(\n"+np.array2string(gt_vec, precision=4, separator=',')+')')
+    # print("Aligned Pred Locations")
+    # print("np.array(\n"+np.array2string(us_vec_aligned, precision=4, separator=',')+')')
+    # print("UN-aligned Pred locations")
+    # print("np.array(\n"+np.array2string(us_vec, precision=4, separator=',')+')')
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
     # Plot the three vector on the same graph
@@ -166,9 +153,17 @@ if __name__ == '__main__':
     plt.scatter(us_vec_manual_al[0,:], us_vec_manual_al[1,:], label="Manual aligned Estimate", marker='o', linewidths=2)
     plt.scatter(us_vec_aligned[0,:], us_vec_aligned[1,:], label="Aligned Estimate", alpha = 0.5)
     plt.legend()
+    # limit axis to -1.5 to 1.5
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    
+    # plot x and y axis lines
+    plt.axhline(y=0, color='k')
+    plt.axvline(x=0, color='k')
     #axes equal
     plt.axis('equal')
     plt.show()
+    # plt.savefig(f'slam_eval\slam_eval {time.time()}.png')
     
 
 

@@ -253,7 +253,7 @@ def read_search_list(sname):
     return search_list
 
 
-def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
+def read_target_fruits_pos(search_list, fruit_list, fruit_true_pos, printing = False):
     """Print out the target fruits' pos in the search order
 
     @param search_list: search order of the fruits
@@ -263,7 +263,8 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
 
     fruit_coor = []
 
-    print("Search order:")
+    if printing:
+        print("Search order:")
     n_fruit = 1
     for fruit in search_list:
         for i in range(len(fruit_list)): # there are 5 targets amongst 10 objects
@@ -272,7 +273,8 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
                 x_pos = np.round(fruit_true_pos[i][0], 2)
                 y_pos = np.round(fruit_true_pos[i][1], 2)
                 fruit_coor.append([x_pos, y_pos])
-                print('{}) {} at [{}, {}]'.format(n_fruit,
+                if printing:
+                    print('{}) {} at [{}, {}]'.format(n_fruit,
                                                     fruit,
                                                     x_pos,
                                                     y_pos))
