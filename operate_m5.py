@@ -5,6 +5,7 @@ import numpy as np
 import json
 import argparse
 import time
+from datetime import datetime
 import w8HelperFunc as w8
 from Prac4_Support.Obstacle import *
 import navigate_algo as navi
@@ -67,6 +68,7 @@ class Operate:
         self.notification = '\nPress ENTER to start navigating using SLAM ... \n'
         # Used to computed dt for measure.Drive
         self.control_clock = time.time()
+        self.state_log = []
 
         # Improving slam ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.unsafe_waypoint = 0
@@ -213,6 +215,8 @@ class Operate:
         x = self.ekf.robot.state[0]
         y = self.ekf.robot.state[1]
         theta = self.ekf.robot.state[2]
+        self.state_log.append(self.ekf.robot.state)
+
         return self.ekf.robot.state[0:3, 0]
     
     def print_robot_pose(self):
@@ -582,7 +586,14 @@ if __name__ == "__main__":
 
     # print(f"--> Total steps: {sum(step_list)}")
 
-    # print(waypoint)
+    ###################################################################################
+    ###################################################################################
+    #####################         GUI integrated          #############################
+    ###################################################################################
+    ###################################################################################
+    run_start_time = datetime.now()
+    operate = Operate(args, gui = False)
+    # operate.stop()
 
     # # #######################################################################################
     # # w8.plot_waypoint(waypoint, target_fruit_list, target_fruits_pos, obs_pos, obstacles)
@@ -625,5 +636,8 @@ if __name__ == "__main__":
     #             operate.rotate_360_slam()
 
 
-    #     print("--- Stage 2 --- DEBUG --- Reach target fruit")
-    #     input("Enter to continute\n")
+        print("--- Stage 2 --- DEBUG --- Reach target fruit")
+        input("Enter to continute\n")
+    operate.state_log = np.array(operate.state_log)
+    run_start_time_stamp = run_start_time.strftime("_%Y_%m_%d_%H_%M_%S")
+    np.save("slam_log"+run_start_time_stamp+".npy",operate.state_log)
