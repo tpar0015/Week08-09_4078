@@ -111,6 +111,7 @@ if __name__ == '__main__':
     # Manual transformation
     tmp = np.load("offset.npy")
     x_manual = tmp[:2, :]
+    x_manual = np.zeros((2,1))
     theta_manual = tmp[-1][0]
     # Apply
     us_vec_aligned = apply_transform(theta, x, us_vec)

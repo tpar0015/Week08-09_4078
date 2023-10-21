@@ -313,7 +313,7 @@ class Operate:
                 self.command['save_image'] = True
             ######################################################################
             # continuously save image per loop_interval
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_c:
                 self.flag = not self.flag
             # press V to change speed between M2 and M3
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_v:
@@ -340,8 +340,8 @@ class Operate:
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             
-            # if l is pressed, 
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_l:
+            # if o is pressed, 
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
                 self.notification = 'Save offset.txt'
                 # get robot pose
                 robot_x = self.ekf.robot.state[0]
@@ -376,6 +376,10 @@ class Operate:
                     self.double_reset_comfirm = 0
                     self.ekf.reset()
 
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_l:
+                self.ekf.lock_map = not self.ekf.lock_map
+                self.notification = f'lock_map status: {self.ekf.lock_map}'
+
             # run SLAM
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 # if self.turn_360_time == 0:
@@ -402,7 +406,7 @@ class Operate:
             # run object detector
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                 self.command['inference'] = True
-                self.ekf.lock_map = True
+                
             # save object detection outputs
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_n:
                 self.command['save_inference'] = True

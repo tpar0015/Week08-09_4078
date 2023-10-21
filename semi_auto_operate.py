@@ -20,7 +20,8 @@ import util.DatasetHandler as dh    # save/load functions
 import util.measure as measure      # measurements
 import shutil
 import argparse
-import pygame
+# import pygame
+import datetime
 
 #####################################
 from operate_m5 import Operate
@@ -71,6 +72,10 @@ target_fruit_list = w8.read_search_list(args.shop) # change to 'M4_true_shopping
 target_fruits_pos = w8.read_target_fruits_pos(target_fruit_list, fruits_list, fruits_true_pos)
 ##########################################################################################
 # operate = Operate(args, gui = False, semi = True)
+'''############     LOGGING         #################'''
+run_start_time = datetime.time()
+'''##################################################'''
+
 operate = Operate(args, gui = False, semi = True)
 operate.stop()
 operate.prompt_start_slam(aruco_true_pos)
@@ -147,7 +152,10 @@ try:
         # tmp = input("Press enter to continue to next waypoint, or 'q' to quit: ") 
         # if tmp == 'q':
         #     end = True
-    
 
 except KeyboardInterrupt:
+    operate.state_log = np.array(operate.state_log)
+    run_start_time_stamp = run_start_time.strftime("_%Y_%m_%d_%H_%M_%S")
+    np.save("slam_log"+run_start_time_stamp+".npy",operate.state_log)
+    print("log saved in npy format")
     operate.stop()

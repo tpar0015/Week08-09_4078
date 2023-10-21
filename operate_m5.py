@@ -84,7 +84,7 @@ class Operate:
         # threshold for further actions if "being stuck at the obstacles fruit"
         self.collide_ctr_thres = 3
         # this for skip some waypoint from the start as the robot is confident without slam update
-        self.waypoint_to_skip_update_slam = 5 
+        self.waypoint_to_skip_update_slam = args.skip
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         self.image_id = 0
@@ -170,7 +170,7 @@ class Operate:
                     # check for collision
                     if lm.dist <= self.collide_threshold:
                         print("!!! Alerted - about to collide with landmarks !!!")
-                        self.collide_ctr += 1
+                        # self.collide_ctr += 1
                         self.stop()
                         self.manual_backward()
                         return -1
@@ -227,7 +227,7 @@ class Operate:
         if self.semi_auto: #print in cm
             x *= 100
             y *= 100
-        print(f"---> ROBOT pose: [{x:.3f} {y:.3f} {theta:.3f}]")
+        print(f"\n>>>>>> ROBOT pose: [{x:.3f} {y:.3f} {theta:.3f}] <<<<<")
 
     ####################################################################################
     
@@ -248,10 +248,28 @@ class Operate:
         self.control_clock = time.time()
         return drive_meas
 
-    
-    def manual_backward(self):
+    def manual_forward(self, dist = 0):
+        self.stop()
         scale = self.ekf.robot.wheels_scale
-        drive_time = self.backward_dist / (scale * self.pibot.tick)
+        if dist == 0:
+            dist = self.backward_dist
+        drive_time = dist / (scale * self.pibot.tick)
+        # set velocity
+        self.command['motion'] = [1, 0]
+        # drive
+        drive_time += time.time()
+        while time.time() <= drive_time:
+            self.take_pic()
+            drive_meas = self.control()
+            self.update_slam(drive_meas, waypoint_ctr = 0) # not updating slam
+        self.stop()
+
+    def manual_backward(self, dist = 0):
+        self.stop()
+        scale = self.ekf.robot.wheels_scale
+        if dist == 0:
+            dist = self.backward_dist
+        drive_time = dist / (scale * self.pibot.tick)
         # set velocity
         self.command['motion'] = [-1, 0]
         # drive
@@ -261,10 +279,10 @@ class Operate:
             drive_meas = self.control()
             self.update_slam(drive_meas, waypoint_ctr = 0) # not updating slam
         self.stop()
-        input("Enter to continue")
+        # input("Enter to continue")
 
 
-    def detect_fruit(self, target_fruit_pos):
+    def detect_fruit(self, target_fruit,  target_fruit_pos):
         if not self.semi_auto:
             # need to convert the colour before passing to YOLO
             yolo_input_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
@@ -272,28 +290,37 @@ class Operate:
             self.detector_output, self.yolo_vis = self.detector.detect_single_image(yolo_input_img)
 
             dist = []
+            pixel_center = []
             for detection in self.detector_output:
                 fruit_name = detection[0]
-                tmp = self.est_fruit_dist(detection)
+                tmp, tmp2 = self.est_fruit_dist(detection)
                 dist.append(tmp)
+                pixel_center.append(tmp2)
                 # print(f"{fruit_name} is {tmp}m away")
             
             # Check if the robot is close to the target fruit
             # get robot x, y
-            reach_target_threshold = 0.4
+            reach_target_threshold = 0.3 # this is from camera to FRUIT surface
 
             # check for collision
             if len(dist) > 0:
+                self.
+                # get min(dist) idx
+                min_idx = np.argmin(dist)
                 if min(dist) < reach_target_threshold:
                     current_robot_xy = self.get_robot_pose()[:2]
-                    if self.reach_close_point(current_robot_xy, target_fruit_pos, threshold = 0.4):
-                        print("Hell yeah, reach fruit early")
+                    # check distance from robot to FRUIT centre (approx 0.5 / fruit thickness)
+                    if self.reach_close_point(current_robot_xy, target_fruit_pos, threshold = reach_target_threshold + 0.05):
+                        print(f"Hell yeah, reach {target_fruit} early - fruit {min(dist)}")
+                        # print(f"Pixel center: {pixel_center[min_idx]}")
                         self.stop()
+                        self.manual_forward() # <------------------
                         input("Enter to continue")
-                        return True
+                        return -1
                 if min(dist) < self.collide_threshold:
                     print(f"!!! Alerted - fruit {min(dist)} !!!")
-                    self.collide_ctr += 1
+                    # print(f"Pixel center: {pixel_center[min_idx]}")
+                    # self.collide_ctr += 1
                     self.stop()
                     self.manual_backward()
                     return True
@@ -327,7 +354,7 @@ class Operate:
         pixel_height = target_box[3]
         pixel_center = target_box[0]
         distance = true_height/pixel_height * focal_length  # estimated distance between the object and the robot based on height
-        return distance   
+        return distance, pixel_center   
 
 
 
@@ -361,7 +388,7 @@ class Operate:
         # input("Done, continue the navi?\n")
 
     # waypoint_ctr used to skip update slam for the first waypoint
-    def drive_to_point(self, waypoint, waypoint_ctr, target_fruit_pos = 0):
+    def drive_to_point(self, waypoint, waypoint_ctr, target_fruit=0, target_fruit_pos = 0):
         turn_time = self.get_turn_time(waypoint)
         drive_time = self.get_drive_time(waypoint)
         #################################################
@@ -383,9 +410,14 @@ class Operate:
                 drive_meas = self.control()
                 # if slam_update_flag:
                 lms_detect = self.update_slam(drive_meas, waypoint_ctr)
-                if lms_detect == -1 or self.detect_fruit(target_fruit_pos):
-                    if self.collide_ctr == self.collide_ctr_thres:
-                        self.localise_360()
+                detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos) 
+                if detect_fruit_flag == -1:
+                    # reach fruit by camera check
+                    return -1
+                if lms_detect == -1 or detect_fruit_flag:
+                    # if self.collide_ctr == self.collide_ctr_thres:
+                    #     print("--------------- Please dont get stuck ---------------")
+                    #     self.localise_360()
                         # self.go_around()
                     # skip this waypoint
                     return None
@@ -407,9 +439,13 @@ class Operate:
             drive_meas = self.control()
             # if slam_update_flag:
             lms_detect = self.update_slam(drive_meas, waypoint_ctr)
-            if lms_detect == -1 or self.detect_fruit(target_fruit_pos):
-                if self.collide_ctr == self.collide_ctr_thres:
-                    self.localise_360()
+            detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos) 
+            if detect_fruit_flag == -1:
+                # reach fruit by camera check
+                return -1
+            if lms_detect == -1 or detect_fruit_flag:
+                # if self.collide_ctr == self.collide_ctr_thres:
+                #     self.localise_360()
                     # self.go_around() # <------------------------------------------------------
                 # skip this waypoint
                 return None
@@ -456,18 +492,24 @@ class Operate:
 
 
     def get_drive_time(self, waypoint):
-        # Get params
-        scale = self.ekf.robot.wheels_scale
-        baseline = self.ekf.robot.wheels_width
-        # Get pose
-        robot_pose = self.get_robot_pose()
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # after turning, drive straight to the waypoint
-        # print(f"DEBUG: {waypoint, robot_pose}")
-        robot_dist = ((waypoint[1]-robot_pose[1])**2 + (waypoint[0]-robot_pose[0])**2)**(1/2)
-        drive_time = robot_dist / (scale * self.pibot.tick)
-        # print(f"Distance to drive: {robot_dist}")
-        # print("--------------------------------")
+        valid_dist = False
+        while not valid_dist:
+            # Get params
+            scale = self.ekf.robot.wheels_scale
+            baseline = self.ekf.robot.wheels_width
+            # Get pose
+            robot_pose = self.get_robot_pose()
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # after turning, drive straight to the waypoint
+            # print(f"DEBUG: {waypoint, robot_pose}")
+            robot_dist = ((waypoint[1]-robot_pose[1])**2 + (waypoint[0]-robot_pose[0])**2)**(1/2)
+            if robot_dist <= 0.5:
+                valid_dist = True
+            else:
+                self.localise_360()
+            drive_time = robot_dist / (scale * self.pibot.tick)
+            # print(f"Distance to drive: {robot_dist}")
+            # print("--------------------------------")
         return drive_time
 
 
@@ -636,8 +678,6 @@ if __name__ == "__main__":
     #             operate.rotate_360_slam()
 
 
-        print("--- Stage 2 --- DEBUG --- Reach target fruit")
-        input("Enter to continute\n")
-    operate.state_log = np.array(operate.state_log)
-    run_start_time_stamp = run_start_time.strftime("_%Y_%m_%d_%H_%M_%S")
-    np.save("slam_log"+run_start_time_stamp+".npy",operate.state_log)
+    print("--- Stage 2 --- DEBUG --- Reach target fruit")
+    input("Enter to continute\n")
+

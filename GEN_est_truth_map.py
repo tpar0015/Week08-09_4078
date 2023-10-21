@@ -268,6 +268,6 @@ if __name__ == '__main__':
     generate_est_truth_map()
     
     # print out the est_truth_map.txt
-    with open('est_truth_map.txt','r') as f:
-        for line in f:
-            print(line, end='')
+    # with open('est_truth_map.txt','r') as f:
+    #     for line in f:
+    #         print(line, end='')

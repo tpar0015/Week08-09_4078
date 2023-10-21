@@ -248,8 +248,8 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser('Matching the estimated map and the true map')
     parser.add_argument('true_map', type=str, default='true_map.txt')
-    parser.add_argument('--slam_est', type=str, default='lab_output/slam.txt')
-    parser.add_argument('--target_est', type=str, default='lab_output/targets.txt')
+    parser.add_argument('--slam', type=str, default='lab_output/slam.txt')
+    parser.add_argument('--target', type=str, default='lab_output/targets.txt')
     parser.add_argument('--est_map', type=str, default='est_truth_map.txt')
     parser.add_argument('--slam_only', action='store_true')
     parser.add_argument('--target-only', action='store_true')
@@ -268,7 +268,7 @@ if __name__ == '__main__':
 
     if slam_only:
         # only evaluate SLAM
-        aruco_est = parse_slam_map(args.slam_est)
+        aruco_est = parse_slam_map(args.slam)
         taglist, slam_est_vec, slam_gt_vec = match_aruco_points(aruco_est, aruco_gt)
         theta, x = solve_umeyama2d(slam_est_vec, slam_gt_vec)
         slam_est_vec_aligned = apply_transform(theta, x, slam_est_vec)
@@ -278,26 +278,38 @@ if __name__ == '__main__':
         print(f'The SLAM RMSE = {np.round(slam_rmse, 3)}')
 
     elif target_only:
-        objects_est = parse_object_map(args.target_est)
+        objects_est = parse_object_map(args.target)
         object_est_errors = compute_object_est_error(objects_gt, objects_est)
         print('Object pose estimation errors:')
         print(json.dumps(object_est_errors, indent=4))
     else:
         # evaluate SLAM
-        aruco_est = parse_slam_map(args.slam_est)
+        aruco_est = parse_slam_map(args.slam)
         taglist, slam_est_vec, slam_gt_vec = match_aruco_points(aruco_est, aruco_gt)
         theta, x = solve_umeyama2d(slam_est_vec, slam_gt_vec)
         slam_est_vec_aligned = apply_transform(theta, x, slam_est_vec)
+        ################################
+        # Manual align
+        tmp = np.load("offset.npy")
+        x_trans = tmp[:2, :]
+        theta_trans = tmp[-1][0]
+        # # Find slam_vec
+        # aruco_est_MANUAL = parse_slam_map(args.est_map)
+        # _, slam_est_vec_MANUAL, _ = match_aruco_points(aruco_est_MANUAL, aruco_gt)
+        ################################
+        ################################
 
         slam_rmse_raw = compute_slam_rmse(slam_est_vec, slam_gt_vec)
+        # slam_rmse__MANUAL = compute_slam_rmse(slam_est_vec_MANUAL, slam_gt_vec)
         slam_rmse_aligned = compute_slam_rmse(slam_est_vec_aligned, slam_gt_vec)
 
         print(f'The SLAM RMSE before alignment = {np.round(slam_rmse_raw, 3)}')
+        # print(f'The SLAM RMSE manual alignment = {np.round(slam_rmse__MANUAL, 3)}')
         print(f'The SLAM RMSE after alignment = {np.round(slam_rmse_aligned, 3)}')
 
         print('----------------------------------------------')
         # evaluate object pose estimation errors
-        objects_est = parse_object_map(args.target_est)
+        objects_est = parse_object_map(args.target)
 
         # align the object poses using the transform computed from SLAM
         objects_est_aligned = align_object_poses(theta, x, objects_est)
@@ -328,6 +340,9 @@ if __name__ == '__main__':
         print(f'Individual target scores: {target_scores}')
         print('======')
         print(f'Target Estimation Error Score (0 to 80): = {np.sum(target_scores)}')
+        print('======')
+        print(f'Umeyama offset: {theta}, trans: {x[0,0]} {x[1,0]}')
+        print(f"Offset read from offset.npy: angle: {theta_trans}, trans: {x_trans[0,0]} {x_trans[1,0]} ")
 
         # plot the 2 map
         plot_full_map(args.true_map, color='g', alpha=0.1)

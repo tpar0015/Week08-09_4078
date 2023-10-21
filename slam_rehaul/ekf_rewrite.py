@@ -134,7 +134,7 @@ class EKF:
             # input("2s passed, enter to continue")
             self.print_clock = time.time()
             self.print_flag  = True
-            print(f"Predict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
+            # print(f"Predict: {self.robot.state[0]} - {self.robot.state[1]} - {np.rad2deg(self.robot.state[2])}")
 
     '''
     Input:
