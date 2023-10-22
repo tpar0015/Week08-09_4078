@@ -151,7 +151,7 @@ class Map:
         """
         Updates path to avoid any new obstacles
         """
-        end_node = self.G.get_nearest_node(waypoint[:2])
+        end_node = self.G.get_nearest_node(waypoint[:2], alter_node=start_node.xy)
         end_node.is_target = True
         if end_node is not None:
             self.G.djikstras(start_node, end_node)
@@ -349,6 +349,7 @@ class Map:
             # Figure size
             fig = plt.gcf()
             fig.set_size_inches(18.5, 10.5)
+            # plt.show()
             plt.show(block=False)
         else:
             plt.savefig("djikstras_map.png")
@@ -471,7 +472,8 @@ class Map:
             # Figure size
             fig = plt.gcf()
             fig.set_size_inches(18.5, 10.5)
-            plt.show(block=False)
+            # plt.show(block=False)
+            plt.show()
         else:
             plt.savefig("djikstras_map.png")
             # Display Image
