@@ -42,8 +42,10 @@ class aruco_detector:
             lm_tvecs = tvecs[ids==idi].T
             lm_bff2d = np.block([[lm_tvecs[2,:]],[-lm_tvecs[0,:]]])
             lm_bff2d = np.mean(lm_bff2d, axis=1).reshape(-1,1)
+            # print(f"tag: {idi}", end=" - ")
+            lm_cov, lm_dist = self.marker_covariance(lm_tvecs)
 
-            lm_measurement = measure.Marker(lm_bff2d, idi)
+            lm_measurement = measure.Marker(lm_bff2d, idi, lm_cov, lm_dist)
             measurements.append(lm_measurement)
         
         # Draw markers on image copy
@@ -51,3 +53,13 @@ class aruco_detector:
         cv2.aruco.drawDetectedMarkers(img_marked, corners, ids)
 
         return measurements, img_marked
+    
+    def marker_covariance(self, lm_tvec):
+        """Defines covariance of marker measurements to increase with distance to marker"""
+        dist_to_marker = np.linalg.norm(lm_tvec)
+
+        # Assume that ~ is the optimal distance for detection
+        # Apply ReLU to ensure that covariance is always positive
+        dist_update = np.maximum(dist_to_marker - 0.15, 0)
+        # print(dist_to_marker)
+        return np.eye(2) * 0.01 + np.eye(2) * dist_update * 0.01, dist_to_marker

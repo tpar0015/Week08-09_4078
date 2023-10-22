@@ -44,22 +44,26 @@ parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
 # For navi
 obs_size = 400  # 500
-shop_size = 300 # 400
 parser.add_argument("--aruco_size", metavar='',  type=int, default=obs_size)
 parser.add_argument("--fruit_size", metavar='', type=int, default=obs_size)  
 # Entire Robot is within 0.5 from fruit centre
 parser.add_argument("--target_size", metavar='',  type=int, default=300)
 parser.add_argument("--waypoint_threshold", metavar='', type=int, default=100)
-# For control
+# For control   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 parser.add_argument("--turn_tick", metavar='', type=int, default=20)
 parser.add_argument("--tick", metavar='', type=int, default=40)
 parser.add_argument("--unsafe_thres", metavar='', type=int, default=5)
 parser.add_argument("--slam_turn_tick", metavar='', type=int, default=15)
-parser.add_argument("--start_360", type=int, default=0)
-parser.add_argument("--skip", type=int, default=0)
+# Optional operation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+parser.add_argument("--waypoint_skip", type=int, default=0)
+parser.add_argument("--start_360", type=int, default=1)
+parser.add_argument("--visional_skip", type=int, default=0)
+parser.add_argument("--validate_dist", type=int, default=1)
+parser.add_argument("--v_dist", type=float, default=1)
 # For debug
 parser.add_argument("--plot", type=int, default=1)
 parser.add_argument("--debug", type=int, default=0)
+parser.add_argument("--print_period", type=float, default=0)
 # Fruit detection
 parser.add_argument("--yolo", default='latest_model.pt')
 
@@ -113,13 +117,20 @@ try:
         target_fruit_list = w8.read_search_list(args.shop) # change to 'M4_true_shopping_list.txt' for lv2&3
         target_fruits_pos = w8.read_target_fruits_pos(target_fruit_list, fruits_list, fruits_true_pos, printing=True)    
         waypoint_ctr = 0
+        last_path_waypoint = False
         # update_slam_flag = False
 
         # Iterate through each path in from navigation planning
         for one_path, target_f, target_pos in zip(path, target_fruit_list, target_fruits_pos):
             # Iterate through each waypoint of each path to target fruit (in shopping order)
+            last_path_waypoint = False
             for waypoint_mm in one_path:
-                if waypoint_ctr == args.skip:
+                # check current index
+                if waypoint_mm == one_path[-1]:
+                    # input("This is last waypoint, check if it still going backward")
+                    last_path_waypoint = True
+
+                if waypoint_ctr == args.waypoint_skip:
                     if args.start_360:
                         operate.localise_360()
                 waypoint_ctr += 1
@@ -134,30 +145,33 @@ try:
                 ###########################################################
                 print("###################################")
                 print(f"Next waypoint {waypoint}")
-                if operate.drive_to_point(waypoint, waypoint_ctr, target_f, target_pos) == -1:
-                    print("\n>>>>> SUCCESSFULLY SKIP THIS PATH <<<<<<")
-                    if args.debug:
-                        input("Enter to continue")
-                    break
+                operate.drive_to_point(waypoint, waypoint_ctr, target_f, target_pos, last_path_waypoint)
                 operate.stop()
                 operate.print_robot_pose()
+
                 # Debugging
                 if args.debug:
                     input("Enter to continue")
 
+
+
             ###########################################################
             # 3. When reach the target, wait and continue
             ###########################################################
+            if args.visional_skip:
+                print("Reach the target fruit zone")
+                operate.search_target_360(target_f, target_pos)
+
             shopping_time = 3
-            print_period = 1
+            print_period = 0.5
             # print(f"Reach {fruit}, wait for {shopping_time}s\n\n\n")
-            print("Reached Fruit")
+            # print(f"Reached {target_f}")
             cur_time = time.time()
             print_time = cur_time
             while time.time() - cur_time < shopping_time:
                 # Print every print_period
                 if time.time() - print_time > print_period:
-                    print(f"Grabbing the fruit - Hopefully not smashing it")
+                    print(f"\n>>>>> Grabbing the {target_f} - Hopefully not smashing it <<<<<")
                     print_time = time.time()
 
 

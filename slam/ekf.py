@@ -110,11 +110,12 @@ class EKF:
 
     # the update step of EKF
     def update(self, measurements):
+        measurements = [measurement for measurement in measurements if measurement.tag in self.taglist] # <------------------------------ !!
         if not measurements:
             return
 
         # Construct measurement index list
-        tags = [lm.tag for lm in measurements]
+        tags = [lm.tag for lm in measurements] 
         idx_list = [self.taglist.index(tag) for tag in tags]
 
         # Stack measurements and set covariance
@@ -208,18 +209,20 @@ class EKF:
             if lm.tag in self.taglist:
                 # ignore known tags
                 continue
-            
-            lm_bff = lm.position
-            lm_inertial = robot_xy + R_theta @ lm_bff
 
-            self.taglist.append(int(lm.tag))
-            self.markers = np.concatenate((self.markers, lm_inertial), axis=1)
+            print(f"{lm.tag} is {lm.dist}")
+            if lm.dist <= 1.7: # not adding landmark if it too far away ------------------
+                lm_bff = lm.position
+                lm_inertial = robot_xy + R_theta @ lm_bff
 
-            # Create a simple, large covariance to be fixed by the update step
-            self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
-            self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
-            self.P[-2,-2] = self.init_lm_cov**2
-            self.P[-1,-1] = self.init_lm_cov**2
+                self.taglist.append(int(lm.tag))
+                self.markers = np.concatenate((self.markers, lm_inertial), axis=1)
+
+                # Create a simple, large covariance to be fixed by the update step
+                self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
+                self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
+                self.P[-2,-2] = self.init_lm_cov**2
+                self.P[-1,-1] = self.init_lm_cov**2
 
         # # Validate
         # print("_____________________")

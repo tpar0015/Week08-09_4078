@@ -108,7 +108,7 @@ class OutputWriter:
             os.makedirs(self.folder)
         
         self.img_f = open(folder_name+"images.txt", 'w')   
-        self.map_f = folder_name+"slam.txt"
+        self.map_f = folder_name+"slam_runX_412.txt"
 
         self.image_count = 0
         

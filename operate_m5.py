@@ -84,7 +84,14 @@ class Operate:
         # threshold for further actions if "being stuck at the obstacles fruit"
         self.collide_ctr_thres = 3
         # this for skip some waypoint from the start as the robot is confident without slam update
-        self.waypoint_to_skip_update_slam = args.skip
+        self.waypoint_to_skip_update_slam = args.waypoint_skip
+        # use vision information to skip the path to fruit
+        self.visional_skip = args.visional_skip
+        # to print updated pose in during SLAM pooling loop
+        self.print_period = args.print_period
+        # validate whether the drive time is reasonable
+        self.validate_dist_mode = args.validate_dist
+        self.v_dist = args.v_dist
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         self.image_id = 0
@@ -153,7 +160,7 @@ class Operate:
     # SLAM with ARUCO markers       
     # def update_slam(self, drive_meas, slam_update_flag=True, weight=0):
     def update_slam(self, drive_meas, waypoint_ctr=100, check_collision = True): # by default, always update slam
-        print_period = 0.05
+        print_period = self.print_period
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
 
         if self.request_recover_robot: pass
@@ -169,7 +176,7 @@ class Operate:
                 if not self.semi_auto:
                     # check for collision
                     if lm.dist <= self.collide_threshold:
-                        print("!!! Alerted - about to collide with landmarks !!!")
+                        # print("!!! Alerted - about to collide with landmarks !!!")
                         # self.collide_ctr += 1
                         self.stop()
                         self.manual_backward()
@@ -282,57 +289,6 @@ class Operate:
         # input("Enter to continue")
 
 
-    def detect_fruit(self, target_fruit,  target_fruit_pos):
-        if not self.semi_auto:
-            # need to convert the colour before passing to YOLO
-            yolo_input_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
-
-            self.detector_output, self.yolo_vis = self.detector.detect_single_image(yolo_input_img)
-
-            dist = []
-            pixel_center = []
-            for detection in self.detector_output:
-                fruit_name = detection[0]
-                tmp, tmp2 = self.est_fruit_dist(detection)
-                dist.append(tmp)
-                pixel_center.append(tmp2)
-                # print(f"{fruit_name} is {tmp}m away")
-            
-            # Check if the robot is close to the target fruit
-            # get robot x, y
-            reach_target_threshold = 0.3 # this is from camera to FRUIT surface
-
-            # check for collision
-            if len(dist) > 0:
-                self.
-                # get min(dist) idx
-                min_idx = np.argmin(dist)
-                if min(dist) < reach_target_threshold:
-                    current_robot_xy = self.get_robot_pose()[:2]
-                    # check distance from robot to FRUIT centre (approx 0.5 / fruit thickness)
-                    if self.reach_close_point(current_robot_xy, target_fruit_pos, threshold = reach_target_threshold + 0.05):
-                        print(f"Hell yeah, reach {target_fruit} early - fruit {min(dist)}")
-                        # print(f"Pixel center: {pixel_center[min_idx]}")
-                        self.stop()
-                        self.manual_forward() # <------------------
-                        input("Enter to continue")
-                        return -1
-                if min(dist) < self.collide_threshold:
-                    print(f"!!! Alerted - fruit {min(dist)} !!!")
-                    # print(f"Pixel center: {pixel_center[min_idx]}")
-                    # self.collide_ctr += 1
-                    self.stop()
-                    self.manual_backward()
-                    return True
-        
-        return False
-
-        # For GUI:
-        # covert the colour back for display purpose
-        # self.yolo_vis = cv2.cvtColor(self.yolo_vis, cv2.COLOR_RGB2BGR)
-        # # self.command['inference'] = False     # uncomment this if you do not want to continuously predict
-        # self.file_output = (yolo_input_img, self.ekf)
-
     def est_fruit_dist(self, obj_info):
         focal_length = self.ekf.robot.camera_matrix[0][0]
         target_dimensions_dict = {'Orange': [0.075,0.075,0.073], 'Lemon': [0.08,0.05,0.05], 
@@ -356,9 +312,105 @@ class Operate:
         distance = true_height/pixel_height * focal_length  # estimated distance between the object and the robot based on height
         return distance, pixel_center   
 
+    def detect_fruit(self, target_fruit,  target_fruit_pos, manual_backward = True):
+        if not self.semi_auto:
+            # need to convert the colour before passing to YOLO
+            yolo_input_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
+
+            self.detector_output, self.yolo_vis = self.detector.detect_single_image(yolo_input_img)
+
+            dist = []
+            pixel_center = []
+            for detection in self.detector_output:
+                fruit_name = detection[0]
+                tmp, tmp2 = self.est_fruit_dist(detection)
+                dist.append(tmp)
+                pixel_center.append(tmp2)
+
+                print(f"detected {fruit_name} - ")
+            
+            # Check if the robot is close to the target fruit
+            # get robot x, y
+            reach_target_threshold = 0.3 # this is from camera to FRUIT surface
+
+            # check for collision
+            if len(dist) > 0:
+
+                ################################################
+                if min(dist) < self.collide_threshold:
+                    print(f"!!! Alerted - fruit {min(dist)} !!!")
+                    # print(f"Pixel center: {pixel_center[min_idx]}")
+                    # self.collide_ctr += 1
+                    if manual_backward:
+                        self.stop()
+                        self.manual_backward()
+                    return True
+        
+        return False
+
+    def detect_target_fruit(self, target_fruit,  target_fruit_pos):
+        if not self.semi_auto:
+            # need to convert the colour before passing to YOLO
+            yolo_input_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
+
+            self.detector_output, self.yolo_vis = self.detector.detect_single_image(yolo_input_img)
+
+            fruit_name = []
+            dist = []
+            pixel_center = []
+            for detection in self.detector_output:
+                fruit_name = detection[0]
+                dist, pixel_center = self.est_fruit_dist(detection)
+                
+                print(f"detected {fruit_name} - {dist}m away")
+                
+                image_width = 320
+                x_shift = abs(image_width/2 - pixel_center)              # x distance between bounding box centre and centreline in camera view
+                if fruit_name.lower() == target_fruit.lower() and x_shift < 50: #check pixel
+                    print(f" --> Found target fruit {fruit_name} - {x_shift} pixels from centre")
+                    # this threshold should be around the fruit_size set for path planning
+                    if dist < 0.7:
+                        print(f"{dist}m away \n")
+                        return True
+        
+        return False
 
 
     # Rotate 360 to accurately self localise
+    # No collision-detection !
+    def search_target_360(self, target_fruit=0, target_fruit_pos = 0):
+        self.stop()
+        # Get params
+        scale = self.ekf.robot.wheels_scale
+        baseline = self.ekf.robot.wheels_width
+        # Compute
+        tmp = self.pibot.turning_tick
+        self.pibot.turning_tick = 12
+        # turn_360_time = baseline/2 * (2*np.pi) / (scale * self.pibot.turning_tick)
+        # Rotate at spot
+        self.command['motion'] = [0, 1]
+        # turn_360_time += time.time()
+
+        while not self.detect_target_fruit(target_fruit, target_fruit_pos):
+            self.take_pic()
+            drive_meas = self.control()
+            self.update_slam(drive_meas)
+        # Reset speed
+        self.pibot.turning_tick = tmp
+        self.stop()
+
+        input("Enter to continue going FORWARD to TARGET")
+        # Drive forward until it reach fruit
+        self.command['motion'] = [1, 0]
+        while not self.detect_fruit(target_fruit, target_fruit_pos, manual_backward=False):
+            self.take_pic()
+            drive_meas = self.control()
+        
+        self.stop()    
+        # input("Done, continue the navi?\n")
+
+    # Rotate 360 to accurately self localise
+    # No collision-detection !
     def localise_360(self):
         self.stop()
         print("Robot pose before: ")
@@ -388,9 +440,11 @@ class Operate:
         # input("Done, continue the navi?\n")
 
     # waypoint_ctr used to skip update slam for the first waypoint
-    def drive_to_point(self, waypoint, waypoint_ctr, target_fruit=0, target_fruit_pos = 0):
+    def drive_to_point(self, waypoint, waypoint_ctr, target_fruit=0, target_fruit_pos = 0, last_waypoint = 0):
         turn_time = self.get_turn_time(waypoint)
         drive_time = self.get_drive_time(waypoint)
+        localise_flag = True
+        detect_fruit_flag = False
         #################################################
         print(f"Turn for {turn_time}")
         if turn_time != 0:
@@ -404,16 +458,16 @@ class Operate:
             turn_time += time.time()
             self.control_clock = time.time()
             
-            localise_flag = True
             while time.time() <= turn_time:
                 self.take_pic()
                 drive_meas = self.control()
-                # if slam_update_flag:
                 lms_detect = self.update_slam(drive_meas, waypoint_ctr)
-                detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos) 
-                if detect_fruit_flag == -1:
-                    # reach fruit by camera check
-                    return -1
+
+                if not last_waypoint:
+                    detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos) 
+                # if detect_fruit_flag == -1:
+                #     # reach fruit by camera check
+                #     return -1
                 if lms_detect == -1 or detect_fruit_flag:
                     # if self.collide_ctr == self.collide_ctr_thres:
                     #     print("--------------- Please dont get stuck ---------------")
@@ -439,10 +493,12 @@ class Operate:
             drive_meas = self.control()
             # if slam_update_flag:
             lms_detect = self.update_slam(drive_meas, waypoint_ctr)
-            detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos) 
-            if detect_fruit_flag == -1:
-                # reach fruit by camera check
-                return -1
+            if not last_waypoint:
+                detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos) 
+
+            # if detect_fruit_flag == -1:
+            #     # reach fruit by camera check
+            #     return -1
             if lms_detect == -1 or detect_fruit_flag:
                 # if self.collide_ctr == self.collide_ctr_thres:
                 #     self.localise_360()
@@ -465,6 +521,7 @@ class Operate:
             if not self.semi_auto:
                 self.localise_360()
                 self.unsafe_waypoint = 0
+                print(f"DEBUG: {self.unsafe_waypoint, self.unsafe_threshold}")
 
 
     def get_turn_time(self, waypoint):
@@ -503,10 +560,12 @@ class Operate:
             # after turning, drive straight to the waypoint
             # print(f"DEBUG: {waypoint, robot_pose}")
             robot_dist = ((waypoint[1]-robot_pose[1])**2 + (waypoint[0]-robot_pose[0])**2)**(1/2)
-            if robot_dist <= 0.5:
+            if robot_dist <= self.v_dist:
                 valid_dist = True
             else:
                 self.localise_360()
+                if not self.validate_dist_mode:
+                    valid_dist = True
             drive_time = robot_dist / (scale * self.pibot.tick)
             # print(f"Distance to drive: {robot_dist}")
             # print("--------------------------------")

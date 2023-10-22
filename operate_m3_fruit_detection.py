@@ -273,37 +273,37 @@ class Operate:
 
         for event in pygame.event.get():
             ######################################
-            # drive forward
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-                self.command['motion'][0] = min(self.command['motion'][0] + 1, 1)
-            # drive backward
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-                self.command['motion'][0] = max(self.command['motion'][0] - 1, -1)
-            # turn left
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-                self.command['motion'][1] = min(self.command['motion'][1] + 1, 1)
-            # drive right
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                self.command['motion'][1] = max(self.command['motion'][1] - 1, -1)
-            # stop
-            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            ########### M1 codes ###########
             # # drive forward
             # if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-            #     # pass # TODO: replace with your code to make the robot drive forward
-            #     self.command['motion'] = [1, 0]
+            #     self.command['motion'][0] = min(self.command['motion'][0] + 1, 1)
             # # drive backward
             # elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-            #     # pass # TODO: replace with your code to make the robot drive backward
-            #     self.command['motion'] = [-1, 0]
+            #     self.command['motion'][0] = max(self.command['motion'][0] - 1, -1)
             # # turn left
             # elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-            #     # pass # TODO: replace with your code to make the robot turn left
-            #     self.command['motion'] = [0, 1]
+            #     self.command['motion'][1] = min(self.command['motion'][1] + 1, 1)
             # # drive right
             # elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-            #     # pass # TODO: replace with your code to make the robot turn right
-            #     self.command['motion'] = [0, -1]
+            #     self.command['motion'][1] = max(self.command['motion'][1] - 1, -1)
+            # # stop
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            ########### M1 codes ###########
+            # drive forward
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+                # pass # TODO: replace with your code to make the robot drive forward
+                self.command['motion'] = [1, 0]
+            # drive backward
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+                # pass # TODO: replace with your code to make the robot drive backward
+                self.command['motion'] = [-1, 0]
+            # turn left
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+                # pass # TODO: replace with your code to make the robot turn left
+                self.command['motion'] = [0, 1]
+            # drive right
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+                # pass # TODO: replace with your code to make the robot turn right
+                self.command['motion'] = [0, -1]
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 self.command['motion'] = [0, 0]

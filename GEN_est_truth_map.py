@@ -8,6 +8,7 @@ import json
 import ast
 import TargetPoseEst
 import cv2
+import matplotlib.pyplot as plt
 from YOLO.detector import Detector
 
 
@@ -106,7 +107,7 @@ def est_fruit_pose(model):
     #     print(f"{target_est.split('_')[0]}: {target_pose_dict[target_est]}")
 
     # save target pose estimations
-    with open(f'{script_dir}/lab_output/targets.txt', 'w') as fo:
+    with open(f'{script_dir}/lab_output/targets_runX_412.txt', 'w') as fo:
         json.dump(target_est, fo, indent=4)
     print('\nEstimations saved! - targets.txt created')
 
@@ -201,6 +202,18 @@ def match_aruco_points(aruco0 : dict):
 
     return keys, np.hstack(points0)
 
+def plot_full_map(aruco_coor, fruit_coor, color = 'r', alpha = 0.5):
+    # Plot both aruco and fruit on the same figure
+    for i in range(len(aruco_coor[0])):
+        # Plot with number label
+        # plt.annotate(aruco_coor[i], (aruco_coor[i][0], aruco_coor[i][1]))
+        plt.scatter(aruco_coor[0][i], aruco_coor[1][i], c=color, marker='o', label='aruco', alpha=alpha)
+
+    for i in range(len(fruit_coor[0])):
+        # Plot with fruit string
+        # plt.annotate(fruit[i], (fruit_pos[i][0], fruit_pos[i][1]))
+        plt.scatter(fruit_coor[0][i], fruit_coor[1][i], c=color, marker='*', label='fruit', alpha=alpha)
+
 
     '''
     ##############################################################################
@@ -261,6 +274,18 @@ if __name__ == '__main__':
     # print(type(aruco_aligned))
     # print(fruit_aligned)
     # print(type(fruit_aligned))
+    
+    # Plot the map before and after transform
+    plot_full_map(us_vec, fruit_vec, color='g', alpha=0.2)
+    plot_full_map(us_vec_aligned, fruit_vec_aligned, color='r', alpha=1)
+    
+    # limit axis to -1.5 to 1.5
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    # plot x and y axis lines
+    plt.axhline(y=0, color='k')
+    plt.axvline(x=0, color='k')
+    plt.show()
 
     generate_aruco_est_pose(aruco_aligned)
     generate_fruit_est_pose(fruit_aligned)

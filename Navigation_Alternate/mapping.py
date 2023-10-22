@@ -43,6 +43,7 @@ class Map:
         self.target_size = target_size
         self.circle_flag = False
         self.plot = plot
+        print(plot)
 
     def generate_map(self):
         """
