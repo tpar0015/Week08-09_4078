@@ -47,18 +47,23 @@ obs_size = 400  # 500
 parser.add_argument("--aruco_size", metavar='',  type=int, default=obs_size)
 parser.add_argument("--fruit_size", metavar='', type=int, default=obs_size)  
 # Entire Robot is within 0.5 from fruit centre
-parser.add_argument("--target_size", metavar='',  type=int, default=300)
+parser.add_argument("--target_size", metavar='',  type=int, default=500)
 parser.add_argument("--waypoint_threshold", metavar='', type=int, default=100)
 # For control   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 parser.add_argument("--turn_tick", metavar='', type=int, default=20)
 parser.add_argument("--tick", metavar='', type=int, default=40)
 parser.add_argument("--unsafe_thres", metavar='', type=int, default=5)
 parser.add_argument("--slam_turn_tick", metavar='', type=int, default=15)
+parser.add_argument("--backward_dist", metavar='', type=float, default=0.1)
 # Optional operation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+parser.add_argument("--visional_skip", type=int, default=1)     # default ON
+parser.add_argument("--visional_dist_thres", type=float, default=0.7) # =~ target_size (above)
+
 parser.add_argument("--waypoint_skip", type=int, default=0)
-parser.add_argument("--start_360", type=int, default=1)
-parser.add_argument("--visional_skip", type=int, default=0)
-parser.add_argument("--validate_dist", type=int, default=1)
+parser.add_argument("--start_360", type=int, default=1)         # default ON
+parser.add_argument("--clockwise_360", type=int, default=0)           # 0 mean CLOCKWISE
+
+parser.add_argument("--validate_dist", type=int, default=1)     # default ON
 parser.add_argument("--v_dist", type=float, default=1)
 # For debug
 parser.add_argument("--plot", type=int, default=1)

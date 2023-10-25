@@ -45,24 +45,40 @@ parser.add_argument("--save_data", action='store_true')
 parser.add_argument("--play_data", action='store_true')
 # For navi
 obs_size = 400  # 500
-shop_size = 300 # 400
 parser.add_argument("--aruco_size", metavar='',  type=int, default=obs_size)
 parser.add_argument("--fruit_size", metavar='', type=int, default=obs_size)  
 # Entire Robot is within 0.5 from fruit centre
-parser.add_argument("--target_size", metavar='',  type=int, default=300)
-parser.add_argument("--waypoint_threshold", metavar='', type=int, default=200)
-# For control
-parser.add_argument("--turn_tick", metavar='', type=int, default=45)
+parser.add_argument("--target_size", metavar='',  type=int, default=500)
+parser.add_argument("--waypoint_threshold", metavar='', type=int, default=100)
+# For control   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+parser.add_argument("--turn_tick", metavar='', type=int, default=40)
 parser.add_argument("--tick", metavar='', type=int, default=60)
 parser.add_argument("--unsafe_thres", metavar='', type=int, default=5)
 parser.add_argument("--slam_turn_tick", metavar='', type=int, default=15)
+parser.add_argument("--backward_dist", metavar='', type=float, default=0.1)
+# Optional operation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+parser.add_argument("--visional_skip", type=int, default=1)     # default ON
+parser.add_argument("--visional_dist_thres", type=float, default=0.7) # =~ target_size (above)
+
+parser.add_argument("--waypoint_skip", type=int, default=0)
+parser.add_argument("--start_360", type=int, default=1)         # default ON
+parser.add_argument("--clockwise_360", type=int, default=0)           # 0 mean CLOCKWISE
+
+parser.add_argument("--validate_dist", type=int, default=1)     # default ON
+parser.add_argument("--v_dist", type=float, default=1)
 # For debug
 parser.add_argument("--plot", type=int, default=1)
-parser.add_argument("--waypoint_stop", type=int, default=0)
+parser.add_argument("--debug", type=int, default=0)
+parser.add_argument("--print_period", type=float, default=0)
 # Fruit detection
 parser.add_argument("--yolo", default='latest_model.pt')
 
+
+parser.add_argument("--semi_thres", type=int, default=30)
+
+
 args = parser.parse_args()
+
 
 
 
@@ -73,7 +89,7 @@ target_fruits_pos = w8.read_target_fruits_pos(target_fruit_list, fruits_list, fr
 ##########################################################################################
 # operate = Operate(args, gui = False, semi = True)
 '''############     LOGGING         #################'''
-run_start_time = datetime.time()
+# run_start_time = datetime.time()
 '''##################################################'''
 
 operate = Operate(args, gui = False, semi = True)
@@ -122,10 +138,10 @@ try:
             # check if the dist to waypoint is < 20cm, if not, prompt everything again using right_dist
             dist = np.sqrt((waypoint_x - x)**2 + (waypoint_y - y)**2)
             print(dist)
-            if dist <= 30:
+            if dist <= args.semi_thres:
                 right_dist = True
             else:
-                print("Please enter a waypoint within 20cm of the robot")
+                print(f"Please enter a waypoint within {args.semi_thres}cm of the robot")
                 
             
 
@@ -154,8 +170,8 @@ try:
         #     end = True
 
 except KeyboardInterrupt:
-    operate.state_log = np.array(operate.state_log)
-    run_start_time_stamp = run_start_time.strftime("_%Y_%m_%d_%H_%M_%S")
-    np.save("slam_log"+run_start_time_stamp+".npy",operate.state_log)
-    print("log saved in npy format")
+    # operate.state_log = np.array(operate.state_log)
+    # run_start_time_stamp = run_start_time.strftime("_%Y_%m_%d_%H_%M_%S")
+    # np.save("slam_log"+run_start_time_stamp+".npy",operate.state_log)
+    # print("log saved in npy format")
     operate.stop()

@@ -18,7 +18,7 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from util.pibot import PenguinPi    # access the robot
 import util.DatasetHandler as dh    # save/load functions
 import util.measure as measure      # measurements
-from gui import GUI             # GUI
+from gui import GUI                 # GUI
 import pygame                       # python package for GUI
 import shutil
 
@@ -70,23 +70,24 @@ class Operate:
         self.control_clock = time.time()
         self.state_log = []
 
+        # ###############
+        # Optional arguments inputted
         # Improving slam ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.unsafe_waypoint = 0
         self.unsafe_threshold = args.unsafe_thres
         self.turn_360_vel = args.slam_turn_tick
-
+        self.clockwise_360 = args.clockwise_360
+        # this for skip some waypoint from the start as the robot is confident without slam update
+        self.waypoint_to_skip_update_slam = args.waypoint_skip
         # distance away from obstacles
         self.collide_threshold = 0.2
         # distance to go back if about to collide
-        self.backward_dist = 0.1
-        # number of "about to collide" alerted
-        self.collide_ctr = 0
-        # threshold for further actions if "being stuck at the obstacles fruit"
-        self.collide_ctr_thres = 3
-        # this for skip some waypoint from the start as the robot is confident without slam update
-        self.waypoint_to_skip_update_slam = args.waypoint_skip
+        self.backward_dist = args.backward_dist
+        # Use vision information ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # use vision information to skip the path to fruit
         self.visional_skip = args.visional_skip
+        self.visional_dist_threshold = args.visional_dist_thres
+        # debugging ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # to print updated pose in during SLAM pooling loop
         self.print_period = args.print_period
         # validate whether the drive time is reasonable
@@ -101,6 +102,7 @@ class Operate:
         else:
             shutil.rmtree(self.folder)
             os.makedirs(self.folder)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # initialise images from camera
         self.img = np.zeros([240,320,3], dtype=np.uint8)
         self.aruco_img = np.zeros([240,320,3], dtype=np.uint8)
@@ -116,7 +118,6 @@ class Operate:
         # Use self.command to use self.control func inside POLLING loop
         self.command = {'motion': [0, 0]}
         # self.control_time = 0
-
 
         if gui:
             self.gui = GUI(750,750, args.map)
@@ -146,7 +147,6 @@ class Operate:
             self.image_id += 1
             self.command['save_image'] = False
             self.notification = f'{f_} is saved'
-
 
     ''' 
     ##############################################################################
@@ -206,12 +206,10 @@ class Operate:
     def prompt_start_slam(self, aruco_true_pos):
         # Prompting user to start SLAM
         if not self.ekf_on:
-            tmp = input(self.notification)
+            # tmp = input(self.notification)
             # if tmp == "s":
             self.ekf_on = True
             self.ekf.init_landmarks(aruco_true_pos)
-
-
 
     '''
     ##############################################################################
@@ -223,7 +221,6 @@ class Operate:
         y = self.ekf.robot.state[1]
         theta = self.ekf.robot.state[2]
         self.state_log.append(self.ekf.robot.state)
-
         return self.ekf.robot.state[0:3, 0]
     
     def print_robot_pose(self):
@@ -254,22 +251,6 @@ class Operate:
         drive_meas = measure.Drive(lv, -rv, dt)
         self.control_clock = time.time()
         return drive_meas
-
-    def manual_forward(self, dist = 0):
-        self.stop()
-        scale = self.ekf.robot.wheels_scale
-        if dist == 0:
-            dist = self.backward_dist
-        drive_time = dist / (scale * self.pibot.tick)
-        # set velocity
-        self.command['motion'] = [1, 0]
-        # drive
-        drive_time += time.time()
-        while time.time() <= drive_time:
-            self.take_pic()
-            drive_meas = self.control()
-            self.update_slam(drive_meas, waypoint_ctr = 0) # not updating slam
-        self.stop()
 
     def manual_backward(self, dist = 0):
         self.stop()
@@ -327,20 +308,10 @@ class Operate:
                 dist.append(tmp)
                 pixel_center.append(tmp2)
 
-                print(f"detected {fruit_name} - ")
-            
-            # Check if the robot is close to the target fruit
-            # get robot x, y
-            reach_target_threshold = 0.3 # this is from camera to FRUIT surface
-
             # check for collision
             if len(dist) > 0:
-
-                ################################################
                 if min(dist) < self.collide_threshold:
                     print(f"!!! Alerted - fruit {min(dist)} !!!")
-                    # print(f"Pixel center: {pixel_center[min_idx]}")
-                    # self.collide_ctr += 1
                     if manual_backward:
                         self.stop()
                         self.manual_backward()
@@ -362,14 +333,14 @@ class Operate:
                 fruit_name = detection[0]
                 dist, pixel_center = self.est_fruit_dist(detection)
                 
-                print(f"detected {fruit_name} - {dist}m away")
+                # print(f"detected {fruit_name} - {dist}m away")
                 
                 image_width = 320
                 x_shift = abs(image_width/2 - pixel_center)              # x distance between bounding box centre and centreline in camera view
                 if fruit_name.lower() == target_fruit.lower() and x_shift < 50: #check pixel
-                    print(f" --> Found target fruit {fruit_name} - {x_shift} pixels from centre")
+                    # print(f" --> Found target fruit {fruit_name} - {x_shift} pixels from centre")
                     # this threshold should be around the fruit_size set for path planning
-                    if dist < 0.7:
+                    if dist < self.visional_dist_threshold:
                         print(f"{dist}m away \n")
                         return True
         
@@ -386,28 +357,35 @@ class Operate:
         # Compute
         tmp = self.pibot.turning_tick
         self.pibot.turning_tick = 12
-        # turn_360_time = baseline/2 * (2*np.pi) / (scale * self.pibot.turning_tick)
+        turn_720_time = baseline/2 * (4*np.pi) / (scale * self.pibot.turning_tick)
         # Rotate at spot
-        self.command['motion'] = [0, 1]
-        # turn_360_time += time.time()
-
-        while not self.detect_target_fruit(target_fruit, target_fruit_pos):
+        if self.clockwise_360:
+            self.command['motion'] = [0, 1]
+        else:
+            self.command['motion'] = [0, -1]
+        # Turn
+        forward_flag = False
+        turn_720_time += time.time()
+        while time.time() <= turn_720_time:
+            if self.detect_target_fruit(target_fruit, target_fruit_pos):
+                forward_flag = True
+                break
             self.take_pic()
             drive_meas = self.control()
             self.update_slam(drive_meas)
         # Reset speed
         self.pibot.turning_tick = tmp
         self.stop()
+        if forward_flag:
+            print("Found the fruit after spot-turning")
 
-        input("Enter to continue going FORWARD to TARGET")
-        # Drive forward until it reach fruit
-        self.command['motion'] = [1, 0]
-        while not self.detect_fruit(target_fruit, target_fruit_pos, manual_backward=False):
-            self.take_pic()
-            drive_meas = self.control()
-        
-        self.stop()    
-        # input("Done, continue the navi?\n")
+            # Drive forward until it reach fruit
+            self.command['motion'] = [1, 0]
+            while not self.detect_fruit(target_fruit, target_fruit_pos, manual_backward=False):
+                self.take_pic()
+                drive_meas = self.control()
+            
+            self.stop()
 
     # Rotate 360 to accurately self localise
     # No collision-detection !
@@ -465,11 +443,7 @@ class Operate:
 
                 if not last_waypoint:
                     detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos) 
-                # if detect_fruit_flag == -1:
-                #     # reach fruit by camera check
-                #     return -1
                 if lms_detect == -1 or detect_fruit_flag:
-                    # if self.collide_ctr == self.collide_ctr_thres:
                     #     print("--------------- Please dont get stuck ---------------")
                     #     self.localise_360()
                         # self.go_around()
@@ -494,13 +468,8 @@ class Operate:
             # if slam_update_flag:
             lms_detect = self.update_slam(drive_meas, waypoint_ctr)
             if not last_waypoint:
-                detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos) 
-
-            # if detect_fruit_flag == -1:
-            #     # reach fruit by camera check
-            #     return -1
+                detect_fruit_flag = self.detect_fruit(target_fruit, target_fruit_pos)
             if lms_detect == -1 or detect_fruit_flag:
-                # if self.collide_ctr == self.collide_ctr_thres:
                 #     self.localise_360()
                     # self.go_around() # <------------------------------------------------------
                 # skip this waypoint
@@ -575,70 +544,6 @@ class Operate:
     def stop(self):
         self.pibot.set_velocity([0, 0])
         self.command['motion'] = [0, 0]
-
-    '''
-    ##############################################################################
-    ######################      From M2 - Gui     ################################
-    ##############################################################################
-    '''
-    # # save SLAM map
-    # def record_data(self):
-    #     if self.command['output']:
-    #         self.output.write_map(self.ekf)
-    #         self.notification = 'Map is saved'
-    #         self.command['output'] = False
-
-    # paint the GUI            
-    # def draw(self, canvas):
-    #     canvas.blit(self.bg, (0, 0))
-    #     text_colour = (220, 220, 220)
-    #     v_pad = 40
-    #     h_pad = 20
-    #     # paint SLAM outputs
-    #     ekf_view = self.ekf.draw_slam_state(res=(320, 480+v_pad), not_pause = self.ekf_on)
-    #     canvas.blit(ekf_view, (2*h_pad+320, v_pad))
-    #     robot_view = cv2.resize(self.aruco_img, (320, 240))
-    #     self.draw_pygame_window(canvas, robot_view, 
-    #                             position=(h_pad, v_pad)
-    #                             )
-
-    #     # canvas.blit(self.gui_mask, (0, 0))
-    #     self.put_caption(canvas, caption='SLAM', position=(2*h_pad+320, v_pad)) # M2
-    #     self.put_caption(canvas, caption='Detector (M3)',
-    #                      position=(h_pad, 240+2*v_pad)) # M3
-    #     self.put_caption(canvas, caption='PiBot Cam', position=(h_pad, v_pad))
-
-    #     pygame.font.init()
-    #     TITLE_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 35)
-    #     TEXT_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 40)
-    #     notifiation = TEXT_FONT.render(self.notification,
-    #                                       False, text_colour)
-    #     canvas.blit(notifiation, (h_pad+10, 596))
-
-    #     time_remain = self.count_down - time.time() + self.start_time
-    #     if time_remain > 0:
-    #         time_remain = f'Count Down: {time_remain:03.0f}s'
-    #     elif int(time_remain)%2 == 0:
-    #         time_remain = "Time Is Up !!!"
-    #     else:
-    #         time_remain = ""
-    #     count_down_surface = TEXT_FONT.render(time_remain, False, (50, 50, 50))
-    #     canvas.blit(count_down_surface, (2*h_pad+320+5, 530))
-    #     return canvas
-
-    # @staticmethod
-    # def draw_pygame_window(canvas, cv2_img, position):
-    #     cv2_img = np.rot90(cv2_img)
-    #     view = pygame.surfarray.make_surface(cv2_img)
-    #     view = pygame.transform.flip(view, True, False)
-    #     canvas.blit(view, position)
-    
-    # @staticmethod
-    # def put_caption(canvas, caption, position, text_colour=(200, 200, 200)):
-    #     caption_surface = TITLE_FONT.render(caption,
-    #                                       False, text_colour)
-    #     canvas.blit(caption_surface, (position[0], position[1]-25))
-        
 
 '''
 ########################################################################

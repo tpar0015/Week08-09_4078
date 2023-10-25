@@ -248,8 +248,8 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser('Matching the estimated map and the true map')
     parser.add_argument('true_map', type=str, default='true_map.txt')
-    parser.add_argument('--slam', type=str, default='lab_output/slam.txt')
-    parser.add_argument('--target', type=str, default='lab_output/targets.txt')
+    parser.add_argument('--slam', type=str, default='lab_output/slam_runX_412.txt')
+    parser.add_argument('--target', type=str, default='lab_output/targets_runX_412.txt')
     parser.add_argument('--est_map', type=str, default='est_truth_map.txt')
     parser.add_argument('--slam_only', action='store_true')
     parser.add_argument('--target-only', action='store_true')

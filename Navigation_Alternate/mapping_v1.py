@@ -14,6 +14,7 @@ from Navigation_Alternate.graph import Graph, Node
 from math import comb
 import w8HelperFunc as w8
 from PIL import Image
+import time
 # Recieve position from rotary encoders
 # Recieve readouts from ultrasonic sensor
 
@@ -349,7 +350,7 @@ class Map:
             # Figure size
             fig = plt.gcf()
             fig.set_size_inches(18.5, 10.5)
-            plt.show(block=False)
+            plt.show()
         else:
             plt.savefig("djikstras_map.png")
 
@@ -471,7 +472,7 @@ class Map:
             # Figure size
             fig = plt.gcf()
             fig.set_size_inches(18.5, 10.5)
-            plt.show(block=False)
+            plt.show()
         else:
             plt.savefig("djikstras_map.png")
             # Display Image

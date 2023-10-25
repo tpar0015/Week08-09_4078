@@ -202,17 +202,37 @@ def match_aruco_points(aruco0 : dict):
 
     return keys, np.hstack(points0)
 
-def plot_full_map(aruco_coor, fruit_coor, color = 'r', alpha = 0.5):
-    # Plot both aruco and fruit on the same figure
-    for i in range(len(aruco_coor[0])):
-        # Plot with number label
-        # plt.annotate(aruco_coor[i], (aruco_coor[i][0], aruco_coor[i][1]))
-        plt.scatter(aruco_coor[0][i], aruco_coor[1][i], c=color, marker='o', label='aruco', alpha=alpha)
+def plot_full_map(aruco_dict, target_dict, color = 'r', alpha = 0.5):
+    # extract aruco pos from aruco_pos dict
+    aruco = list(aruco_dict.keys())
+    aruco_pos = list(aruco_dict.values())
+    # extract fruit pos from fruit_pos dict
+    fruit = list(target_dict.keys())
+    fruit_pos = list(target_dict.values())
 
-    for i in range(len(fruit_coor[0])):
+    # Plot both aruco and fruit on the same figure
+    for i in range(len(aruco_pos)):
+        # Plot with number label
+        plt.annotate(aruco[i], (aruco_pos[i][0], aruco_pos[i][1]))
+        plt.scatter(aruco_pos[i][0], aruco_pos[i][1], c=color, marker='o', label='aruco', alpha=alpha)
+
+    for i in range(len(fruit_pos)):
         # Plot with fruit string
-        # plt.annotate(fruit[i], (fruit_pos[i][0], fruit_pos[i][1]))
-        plt.scatter(fruit_coor[0][i], fruit_coor[1][i], c=color, marker='*', label='fruit', alpha=alpha)
+        plt.annotate(fruit[i], (fruit_pos[i][0], fruit_pos[i][1]))
+        plt.scatter(fruit_pos[i][0], fruit_pos[i][1], c=color, marker='*', label='fruit', alpha=alpha)
+
+    # # Plot both aruco and fruit on the same figure
+    # for i in range(len(aruco_coor[0])):
+    #     # Plot with number label
+    #     # plt.annotate(aruco_coor[i], (aruco_coor[i][0], aruco_coor[i][1]))
+        
+    #     plt.annotate(aruco_coor[i], (aruco_coor[0][i], aruco_coor[1][i]))
+    #     plt.scatter(aruco_coor[0][i], aruco_coor[1][i], c=color, marker='o', label='aruco', alpha=alpha)
+
+    # for i in range(len(fruit_coor[0])):
+    #     # Plot with fruit string
+    #     plt.annotate(fruit[i], (fruit_pos[i][0], fruit_pos[i][1]))
+    #     plt.scatter(fruit_coor[0][i], fruit_coor[1][i], c=color, marker='*', label='fruit', alpha=alpha)
 
 
     '''
@@ -225,35 +245,45 @@ if __name__ == '__main__':
 
     # Arguments
     parser = argparse.ArgumentParser("Create estimate map with aruco and fruit")
-    parser.add_argument("--slam", type=str, help="path to slam.txt", default="lab_output/slam.txt")
-    parser.add_argument("--fruit", type=str, help="path to targets.txt", default="lab_output/targets.txt")
+    parser.add_argument("--slam", type=str, help="path to slam.txt", default="lab_output/slam_runX_412.txt")
+    parser.add_argument("--fruit", type=str, help="path to targets.txt", default="lab_output/targets_runX_412.txt")
     parser.add_argument("--yolo", type=str, help="yolo model", default="latest_model.pt")
-    parser.add_argument('--x', type=float, default=-1)
-    parser.add_argument('--y', type=float, default=-1)
-    parser.add_argument('--theta', type=float, default=-1)
+    # parser.add_argument('--x', type=float, default=-1)
+    # parser.add_argument('--y', type=float, default=-1)
+    # parser.add_argument('--theta', type=float, default=-1)
+    # We just realised that we cannot modify the est map after it being generated !!!!!!
     args = parser.parse_args()
     ##############################################################################
     est_fruit_pose(args.yolo)
 
     #############################################################################
-    # read from slam.txt to get aruco position
+    # get pose from generated files
     us_aruco = parse_user_map(args.slam)
     # extract tag and position
     taglist, us_vec = match_aruco_points(us_aruco)
     fruitlist, fruit_vec = match_fruit_points(args.fruit)
+    # Put these in dict:
+    aruco_UNaligned = {}
+    for i in range(len(taglist)):
+        aruco_UNaligned[taglist[i]] = us_vec[:,i]    
+    fruit_UNaligned = {}
+    for i in range(len(fruitlist)):
+        fruit_UNaligned[fruitlist[i]] = fruit_vec[:,i]
 
+    ##################################################################################
+    # Perform transformation/allignment using offset
     # read theta, x, y from offset.txt
     tmp = np.load("offset.npy")
-    if args.x != -1 and args.y != -1:
-        x_trans = np.zeros((2,1))
-        x_trans[0] = args.x
-        x_trans[1] = args.y
-    else:
-        x_trans = tmp[:2, :]
-    if args.theta != -1:
-        theta_trans = args.theta
-    else:
-        theta_trans = tmp[-1][0]
+    # if args.x != -1 and args.y != -1:
+    #     x_trans = np.zeros((2,1))
+    #     x_trans[0] = args.x
+    #     x_trans[1] = args.y
+    # else:
+    x_trans = tmp[:2, :]
+    # if args.theta != -1:
+    #     theta_trans = args.theta
+    # else:
+    theta_trans = tmp[-1][0]
     print("Apply transformation")
     print("Rotation Angle: {}".format(theta_trans))
     print("Translation Vector: ({}, {})".format(x_trans[0,0], x_trans[1,0]))
@@ -270,14 +300,16 @@ if __name__ == '__main__':
     for i in range(len(fruitlist)):
         fruit_aligned[fruitlist[i]] = fruit_vec_aligned[:,i]
 
+    ##################################################################################
+    # Display info
     # print(aruco_aligned)
     # print(type(aruco_aligned))
     # print(fruit_aligned)
     # print(type(fruit_aligned))
     
     # Plot the map before and after transform
-    plot_full_map(us_vec, fruit_vec, color='g', alpha=0.2)
-    plot_full_map(us_vec_aligned, fruit_vec_aligned, color='r', alpha=1)
+    plot_full_map(aruco_UNaligned, fruit_UNaligned, color='g', alpha=0.2)
+    plot_full_map(aruco_aligned, fruit_aligned, color='r', alpha=1)
     
     # limit axis to -1.5 to 1.5
     plt.xlim(-1.5, 1.5)
