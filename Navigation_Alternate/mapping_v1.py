@@ -152,7 +152,13 @@ class Map:
         """
         Updates path to avoid any new obstacles
         """
-        end_node = self.G.get_nearest_node(waypoint[:2])
+        if self.path:
+            second_check_node = self.path[-1][-1]
+            second_check_node_xy = self.G[eval(second_check_node)].xy
+            print(second_check_node_xy)
+        else:
+            second_check_node_xy = (0,0)
+        end_node = self.G.get_nearest_node(waypoint[:2], alter_node=second_check_node_xy)
         end_node.is_target = True
         if end_node is not None:
             self.G.djikstras(start_node, end_node)
@@ -351,6 +357,7 @@ class Map:
             fig = plt.gcf()
             fig.set_size_inches(18.5, 10.5)
             plt.show()
+            # plt.show(block=False)
         else:
             plt.savefig("djikstras_map.png")
 
@@ -472,6 +479,7 @@ class Map:
             # Figure size
             fig = plt.gcf()
             fig.set_size_inches(18.5, 10.5)
+            # plt.show(block=False)
             plt.show()
         else:
             plt.savefig("djikstras_map.png")
@@ -481,7 +489,7 @@ class Map:
 
 
 if __name__ == '__main__':
-    map_test = Map((3000, 3000), 50, true_map="est_truth_map.txt", shopping_list="shopping.txt", distance_threshold=float('inf'), aruco_size=(500,500), fruit_size=(500,500))
+    map_test = Map((3000, 3000), 50, true_map="map/Fri_v1.txt", shopping_list="shopping.txt", distance_threshold=float('inf'), aruco_size=(500,500), fruit_size=(500,500))
     map_test.generate_map()
     map_test.circle_flag = False 
     map_test.add_aruco_markers()

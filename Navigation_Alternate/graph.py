@@ -68,7 +68,7 @@ class Graph:
             self.nodes[node].prev_node = None
             self.nodes[node].distance = float('inf')
 
-    def get_nearest_node(self, pos):
+    def get_nearest_node(self, pos, alter_node=(0,0)):
         """get_nearest_node: Takes in a (x,y) position, returns nearest node on map"""
         min_dist = float("inf")
         min_nodes = []
@@ -83,9 +83,13 @@ class Graph:
                 min_nodes.append(node)
         min_dist_to_center = float('inf')
         for node in min_nodes:
-            if self.distance(node.xy, (0,0)) < min_dist_to_center:
-                min_dist_to_center = self.distance(node.xy, (0,0))
+            if self.distance(node.xy, alter_node) < min_dist_to_center:
+                min_dist_to_center = self.distance(node.xy, alter_node)
                 min_node = node
+
+        if len(min_nodes) > 1:
+            print("Min Nodes:", [n.xy for n in min_nodes])
+            print(alter_node)
         return min_node
 
 
